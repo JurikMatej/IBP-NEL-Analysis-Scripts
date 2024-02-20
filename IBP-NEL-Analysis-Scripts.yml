@@ -1,0 +1,13 @@
+name: IBP-NEL-Analysis-Scripts
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - seaborn
+  - google-cloud-storage
+  - matplotlib
+  - google-cloud-core
+  - pandas
+  - python-dotenv
+prefix: C:\Users\Matej\anaconda3\envs\IBP-NEL-Analysis-Scripts
