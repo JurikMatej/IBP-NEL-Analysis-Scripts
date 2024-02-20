@@ -8,8 +8,12 @@ The environment used to run these scripts is powered by conda.
 Use the following commands to set up the necessary environment.
 
 ```shell
+# Conda set up
 conda env create -n <ENVNAME> --file IBP-NEL-Analysis-Scripts.yml
 conda activate <ENVNAME>
+
+# Environment variables set up
+cp .env_example .env # And then fill out the env variables with real data
 ```
 
 ## TODO
