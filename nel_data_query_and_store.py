@@ -10,13 +10,9 @@ purpose:        Get raw data from the Google Cloud and store as an apache parque
                 (IMPORTANT: do not modify the downloaded data itself - additional queries costs money)
 """
 
-
 import os
+
 from dotenv import load_dotenv
-
-import pandas as pd
-import numpy as np
-
 from google.cloud import bigquery
 from google.oauth2 import service_account
 
@@ -32,24 +28,14 @@ credentials = service_account.Credentials.from_service_account_file(
 
 client = bigquery.Client(credentials=credentials, project=credentials.project_id)
 
+# TODO external config for the analysis-wide used tables
 mobile_summary_tables = [
-    'httparchive.summary_requests.2018_02_01_mobile',
-    'httparchive.summary_requests.2019_02_01_mobile',
-    'httparchive.summary_requests.2020_02_01_mobile',
-    'httparchive.summary_requests.2021_02_01_mobile',
-    'httparchive.summary_requests.2022_02_01_mobile',
-    'httparchive.summary_requests.2023_02_01_mobile'
+    'httparchive.summary_requests.2024_01_01_mobile'
 ]
 
 desktop_summary_tables = [
-    'httparchive.summary_requests.2018_02_01_desktop',
-    'httparchive.summary_requests.2019_02_01_desktop',
-    'httparchive.summary_requests.2020_02_01_desktop',
-    'httparchive.summary_requests.2021_02_01_desktop',
-    'httparchive.summary_requests.2022_02_01_desktop',
-    'httparchive.summary_requests.2023_02_01_desktop'
+    'httparchive.summary_requests.2024_01_01_desktop'
 ]
-
 
 query_string = r'''
 WITH final_extracted_table AS (
@@ -58,12 +44,18 @@ WITH final_extracted_table AS (
       WITH nel_extracted_table AS (
         WITH joined_table AS (
           WITH filtered_table AS (
+            /* TODO Is this optimal ? Each url_domain gets the first request -> firstReq should be true */
+            /* START filtered_table */
             SELECT
             MIN(requestid) min_req_id,
-            REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain,
+            /*COUNTIF(firstReq = false) occurences_count_not_firstreq,*/      /* THIS IS A THROWAWAY COLUMN */			
+            REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain, /* TODO Potentially the cause of the eTLD problem */
             FROM `%s`
             GROUP BY url_domain
+            /* END filtered_table */
           )
+          /* START joined_table */
+          /* TODO must I really join ? do I lose these columns if I select them in the select above this one ? */
           SELECT
           requestid,
           LOWER(respOtherHeaders) resp_headers,
@@ -74,8 +66,9 @@ WITH final_extracted_table AS (
           firstReq,
           FROM filtered_table
           INNER JOIN `%s` ON filtered_table.min_req_id = requestid
+          /* END joined_table */
         )
-
+        /* START nel_extracted_table */
         SELECT
         requestid,
         type,
@@ -87,11 +80,15 @@ WITH final_extracted_table AS (
 
         (SELECT COUNT(*) FROM joined_table) AS unique_domain_count_before_filtration,
         (SELECT COUNT(*) FROM joined_table WHERE firstReq = true) AS unique_domain_firstreq_count_before_filtration,
+        /*REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain,*/
+
         REGEXP_CONTAINS(resp_headers, r"(?:^|.*[\s,]+)(nel\s*[=]\s*)") AS contains_nel,
         REGEXP_EXTRACT(resp_headers, r"(?:^|.*[\s,]+)nel\s*[=]\s*({.*?})") AS nel_value,
 
         FROM joined_table
+        /* END nel_extracted_table */
       )
+      /* START nel_values_extracted_table */
       SELECT
       requestid,
       type,
@@ -99,13 +96,16 @@ WITH final_extracted_table AS (
       firstReq,
       status,
       url,
+      /*url_domain,*/
+
       unique_domain_count_before_filtration,
       unique_domain_firstreq_count_before_filtration,
       contains_nel,
 
       nel_value,
+      resp_headers,
 
-      # extract nel values
+      # extract NEL values
       REGEXP_EXTRACT(nel_value, r".*max_age[\"\']\s*:\s*([0-9]+)") AS nel_max_age,
       REGEXP_EXTRACT(nel_value, r".*failure[_]fraction[\"\']\s*:\s*([0-9\.]+)") AS nel_failure_fraction,
       REGEXP_EXTRACT(nel_value, r".*success[_]fraction[\"\']\s*:\s*([0-9\.]+)") AS nel_success_fraction,
@@ -115,8 +115,9 @@ WITH final_extracted_table AS (
 
       FROM nel_extracted_table
       WHERE contains_nel = true
+      /* END nel_values_extracted_table */
     )
-
+    /* START rt_extracted_values_table */
     SELECT
     requestid,
     type,
@@ -132,6 +133,7 @@ WITH final_extracted_table AS (
     nel_success_fraction,
     nel_include_subdomains,
     nel_report_to_group,
+    nel_value,
     resp_headers,
 
     (SELECT COUNT(*) FROM nel_values_extracted_table) AS nel_count_before_filtration,
@@ -139,7 +141,9 @@ WITH final_extracted_table AS (
     REGEXP_EXTRACT(resp_headers, CONCAT(r"report[-]to\s*?[=].*([{](?:(?:[^\{]*?endpoints.*?[\[][^\[]*?[\]][^\}]*?)|(?:[^\{]*?endpoints.*?[\{][^\{]*?[\}]))?[^\]\}]*?group[\'\"][:]\s*?[\'\"]", nel_report_to_group, r"(?:(?:[^\}]*?endpoints[^\}]*?[\[][^\[]*?[\]][^\{]*?)|(?:[^\}]*?endpoints.*?[\{][^\{]*?[\}]))?.*?[}])")) AS rt_value,
 
     FROM nel_values_extracted_table
+    /* END rt_extracted_values_table */
   )
+  /* START final_extracted_table */
   SELECT
   requestid,
   type,
@@ -155,7 +159,9 @@ WITH final_extracted_table AS (
   nel_success_fraction,
   nel_include_subdomains,
   nel_report_to_group,
+  nel_value,
   rt_value,
+  resp_headers,
   nel_count_before_filtration,
 
   REGEXP_EXTRACT(rt_value, r".*group[\"\']\s*:\s*[\"\'](.+?)[\"\']") AS rt_group,
@@ -165,8 +171,10 @@ WITH final_extracted_table AS (
   REGEXP_EXTRACT(rt_value, r"url[\"\']\s*:\s*(?:[\"\']http[s]?:[\\]*?[\/][\\]*?[\/].*?([^\.]+?[.][^\.]+?)[\\]*?[\/\"])") AS rt_url_sld,
 
   FROM rt_extracted_values_table
+  /* END final_extracted_table */
 )
 
+/* START TOP LEVEL QUERY */
 SELECT
 requestid,
 type,
@@ -182,6 +190,9 @@ nel_failure_fraction,
 nel_success_fraction,
 nel_include_subdomains,
 nel_report_to_group,
+nel_value,
+rt_value,
+resp_headers,
 nel_count_before_filtration,
 rt_group,
 rt_endpoints,
@@ -189,10 +200,13 @@ rt_url,
 rt_url_sld,
 
 FROM final_extracted_table
-# filter data to only those that we could parse, and that has both report_to and group matching
-# by analysis, the filtered out records contains either not json value, bad formating such as \" for json quotes, or are maybe improperly parsed by previous processing by table creators (no value, missing brackets)
+# Filter out un-parseable data, 
+# Data must have both report_to and NEL header 
+# Filter out records containing either:
+#       non-json value, 
+#       bad formating (no value, missing brackets)
 WHERE nel_report_to_group = rt_group and nel_report_to_group is not null and rt_group is not null;
-
+/* END TOP LEVEL QUERY */
 '''
 
 
@@ -203,26 +217,29 @@ def processing_bytes_estimation(table_list, query_string):
     for table_name in table_list:
         query_job = client.query(
             (
-                query_string % (table_name, table_name)
+                    query_string % (table_name, table_name)
             ),
             job_config=job_config,
         )
-        processed_mb = query_job.total_bytes_processed/1024/1024
-        print("This query '{}' will process {} MB, {} GB.".format(table_name, processed_mb, processed_mb/1024))
+        processed_mb = query_job.total_bytes_processed / 1024 / 1024
+        print("This query '{}' will process {} MB, {} GB.".format(table_name, processed_mb, processed_mb / 1024))
         sum_mb += processed_mb
 
     print()
-    print("Total will process {} MB, {} GB, {} TB".format(sum_mb, sum_mb/1024, sum_mb/1024/1024))
+    print("Total will process {} MB, {} GB, {} TB".format(sum_mb, sum_mb / 1024, sum_mb / 1024 / 1024))
 
 
 def run_queries_store_data(results_dir, table_list, query_string) -> list:
+    """
+    TODO ask for user's permission for every table, check also for the table already being in the target dir
+    """
     job_config = bigquery.QueryJobConfig()
     job_list = []
 
     for table_name in table_list:
         query_job = client.query(
             (
-                query_string % (table_name, table_name)
+                    query_string % (table_name, table_name)
             ),
             job_config=job_config,
         )
@@ -237,12 +254,15 @@ def run_queries_store_data(results_dir, table_list, query_string) -> list:
 
     return job_list
 
-run_params = [
-    ('results_mobile_all_feb', mobile_summary_tables),
-    ('results_desktop_all_feb', desktop_summary_tables)
-    ]
 
+run_params = [
+    # Result Directory, List of tables
+    ('data_http_archive_raw/results_mobile', mobile_summary_tables),
+    ('data_http_archive_raw/results_desktop', desktop_summary_tables)
+]
+
+# TODO fetch some data and inspect it (max 100gb)
 for params in run_params:
     processing_bytes_estimation(params[1], query_string)
 
-    job_list = run_queries_store_data(params[0], params[1], query_string)
+    # job_list = run_queries_store_data(params[0], params[1], query_string)
