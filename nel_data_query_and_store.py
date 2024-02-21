@@ -46,19 +46,9 @@ WITH final_extracted_table AS (
   WITH rt_extracted_values_table AS (
     WITH nel_values_extracted_table AS (
       WITH nel_extracted_table AS (
-        WITH joined_table AS (
-          WITH filtered_table AS (
-            /* START filtered_table */
-            SELECT
-            MIN(requestid) min_req_id,
-            /*COUNTIF(firstReq = false) occurences_count_not_firstreq,*/			
-            REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain,
-            FROM `%s`
-            GROUP BY url_domain
-            /* END filtered_table */
-          )
-          
-          /* START joined_table */
+        WITH base_table AS (
+          /* START base_table */
+          -- DESC: Fetch all the base columns necessary
           SELECT
           requestid,
           firstReq,
@@ -68,12 +58,15 @@ WITH final_extracted_table AS (
           status,
           LOWER(respOtherHeaders) resp_headers,
           
-          FROM filtered_table
-          INNER JOIN `%s` ON filtered_table.min_req_id = requestid
-          /* END joined_table */
+          FROM `%s`
+          /* END base_table */
         )
         
         /* START nel_extracted_table */
+        
+        -- DESC: 
+        --  * Determine the number of 'total requests' and 'total unique domain requests' 
+        --  * Extract the NEL header value from the response
         SELECT
         requestid,
         firstReq,
@@ -85,17 +78,18 @@ WITH final_extracted_table AS (
       
         /*REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain,*/
 
-        (SELECT COUNT(*) FROM joined_table) AS unique_domain_count_before_filtration,
-        (SELECT COUNT(*) FROM joined_table WHERE firstReq = true) AS unique_domain_firstreq_count_before_filtration,
+        (SELECT COUNT(*) FROM base_table) AS unique_domain_count_before_filtration,
+        (SELECT COUNT(*) FROM base_table WHERE firstReq = true) AS unique_domain_firstreq_count_before_filtration,
 
         REGEXP_CONTAINS(resp_headers, r"(?:^|.*[\s,]+)(nel\s*[=]\s*)") AS contains_nel,
         REGEXP_EXTRACT(resp_headers, r"(?:^|.*[\s,]+)nel\s*[=]\s*({.*?})") AS nel_value,
 
-        FROM joined_table
+        FROM base_table
         /* END nel_extracted_table */
       )
       
       /* START nel_values_extracted_table */
+      -- DESC: Extract NEL fields from the nel_value
       SELECT
       requestid,
       firstReq,
@@ -130,6 +124,10 @@ WITH final_extracted_table AS (
     )
     
     /* START rt_extracted_values_table */
+    -- DESC: 
+    --  * Store the total number of NEL headers found (before filtering out the ones incorrectly used) 
+    --  * Extract Report-To header value from the response 
+    
     SELECT
     requestid,
     firstReq,
@@ -162,6 +160,7 @@ WITH final_extracted_table AS (
   )
   
   /* START final_extracted_table */
+  -- DESC: Extract Report-To fields from the rt_value
   SELECT
   requestid,
   firstReq,
@@ -199,6 +198,7 @@ WITH final_extracted_table AS (
 )
 
 /* START TOP LEVEL QUERY */
+-- DESC: Return data, for which the NEL and Report-To headers are set up correctly (filter out incorrect use)
 SELECT
 requestid,
 firstReq,
@@ -235,12 +235,11 @@ FROM final_extracted_table
 -- Filter out un-parseable data, 
 -- Data must have both report_to and NEL header 
 -- Filter out records containing either:
-----     * non-json value, 
-----     * bad formating (no value, missing brackets)
+----     * non-json value,
+----     * bad formatting (no value, missing brackets)
 WHERE nel_report_to_group = rt_group and nel_report_to_group is not null and rt_group is not null;
 /* END TOP LEVEL QUERY */
 '''
-
 
 
 def processing_bytes_estimation(table_list, query_string):
@@ -250,7 +249,7 @@ def processing_bytes_estimation(table_list, query_string):
     for table_name in table_list:
         query_job = client.query(
             (
-                    query_string % (table_name, table_name)
+                    query_string % table_name
             ),
             job_config=job_config,
         )
@@ -258,8 +257,8 @@ def processing_bytes_estimation(table_list, query_string):
         print("This query '{}' will process {} MB, {} GB.".format(table_name, processed_mb, processed_mb / 1024))
         sum_mb += processed_mb
 
-    print()
     print("Total will process {} MB, {} GB, {} TB".format(sum_mb, sum_mb / 1024, sum_mb / 1024 / 1024))
+    print()
 
 
 def run_queries_store_data(results_dir, table_list, query_string) -> list:
@@ -272,7 +271,7 @@ def run_queries_store_data(results_dir, table_list, query_string) -> list:
     for table_name in table_list:
         query_job = client.query(
             (
-                    query_string % (table_name, table_name)
+                    query_string % table_name
             ),
             job_config=job_config,
         )
