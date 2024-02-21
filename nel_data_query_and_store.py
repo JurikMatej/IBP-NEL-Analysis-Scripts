@@ -30,13 +30,17 @@ client = bigquery.Client(credentials=credentials, project=credentials.project_id
 
 # TODO external config for the analysis-wide used tables
 mobile_summary_tables = [
-    'httparchive.summary_requests.2024_01_01_mobile'
+    'httparchive.summary_requests.2021_02_01_mobile'
+    # 'httparchive.summary_requests.2024_01_01_mobile'
 ]
 
 desktop_summary_tables = [
-    'httparchive.summary_requests.2024_01_01_desktop'
+    'httparchive.summary_requests.2021_02_01_desktop'
+    # 'httparchive.summary_requests.2024_01_01_desktop'
 ]
 
+
+# TODO get the eTLD with NET.PUBLIC_SUFFIX(url)
 query_string = r'''
 WITH final_extracted_table AS (
   WITH rt_extracted_values_table AS (
@@ -44,43 +48,45 @@ WITH final_extracted_table AS (
       WITH nel_extracted_table AS (
         WITH joined_table AS (
           WITH filtered_table AS (
-            /* TODO Is this optimal ? Each url_domain gets the first request -> firstReq should be true */
             /* START filtered_table */
             SELECT
             MIN(requestid) min_req_id,
-            /*COUNTIF(firstReq = false) occurences_count_not_firstreq,*/      /* THIS IS A THROWAWAY COLUMN */			
-            REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain, /* TODO Potentially the cause of the eTLD problem */
+            /*COUNTIF(firstReq = false) occurences_count_not_firstreq,*/			
+            REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain,
             FROM `%s`
             GROUP BY url_domain
             /* END filtered_table */
           )
+          
           /* START joined_table */
-          /* TODO must I really join ? do I lose these columns if I select them in the select above this one ? */
           SELECT
           requestid,
-          LOWER(respOtherHeaders) resp_headers,
-          status,
-          url,
+          firstReq,
           type,
           ext,
-          firstReq,
+          url,
+          status,
+          LOWER(respOtherHeaders) resp_headers,
+          
           FROM filtered_table
           INNER JOIN `%s` ON filtered_table.min_req_id = requestid
           /* END joined_table */
         )
+        
         /* START nel_extracted_table */
         SELECT
         requestid,
+        firstReq,
         type,
         ext,
-        firstReq,
-        status,
         url,
+        status,
         resp_headers,
+      
+        /*REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain,*/
 
         (SELECT COUNT(*) FROM joined_table) AS unique_domain_count_before_filtration,
         (SELECT COUNT(*) FROM joined_table WHERE firstReq = true) AS unique_domain_firstreq_count_before_filtration,
-        /*REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain,*/
 
         REGEXP_CONTAINS(resp_headers, r"(?:^|.*[\s,]+)(nel\s*[=]\s*)") AS contains_nel,
         REGEXP_EXTRACT(resp_headers, r"(?:^|.*[\s,]+)nel\s*[=]\s*({.*?})") AS nel_value,
@@ -88,86 +94,104 @@ WITH final_extracted_table AS (
         FROM joined_table
         /* END nel_extracted_table */
       )
+      
       /* START nel_values_extracted_table */
       SELECT
       requestid,
+      firstReq,
       type,
       ext,
-      firstReq,
-      status,
       url,
-      /*url_domain,*/
+      status,
+      resp_headers,
+      
+      -- url_domain,
 
       unique_domain_count_before_filtration,
       unique_domain_firstreq_count_before_filtration,
+      
       contains_nel,
-
       nel_value,
-      resp_headers,
-
-      # extract NEL values
-      REGEXP_EXTRACT(nel_value, r".*max_age[\"\']\s*:\s*([0-9]+)") AS nel_max_age,
+      
+      -- Extract NEL values
+      REGEXP_EXTRACT(nel_value, r".*max_age[\"\']\s*:\s*([0-9]+)")              AS nel_max_age,
       REGEXP_EXTRACT(nel_value, r".*failure[_]fraction[\"\']\s*:\s*([0-9\.]+)") AS nel_failure_fraction,
       REGEXP_EXTRACT(nel_value, r".*success[_]fraction[\"\']\s*:\s*([0-9\.]+)") AS nel_success_fraction,
-      REGEXP_EXTRACT(nel_value, r".*include[_]subdomains[\"\']\s*:\s*(\w+)") AS nel_include_subdomains,
+      REGEXP_EXTRACT(nel_value, r".*include[_]subdomains[\"\']\s*:\s*(\w+)")    AS nel_include_subdomains,
 
-      REGEXP_EXTRACT(nel_value, r".*report_to[\"\']\s*:\s*[\"\'](.+?)[\"\']") AS nel_report_to_group,
+      REGEXP_EXTRACT(nel_value, r".*report_to[\"\']\s*:\s*[\"\'](.+?)[\"\']")   AS nel_report_to_group,
 
       FROM nel_extracted_table
+      
+      -- Filter out the non-NEL responses
       WHERE contains_nel = true
+      
       /* END nel_values_extracted_table */
     )
+    
     /* START rt_extracted_values_table */
     SELECT
     requestid,
+    firstReq,
     type,
     ext,
-    firstReq,
-    status,
     url,
+    status,
+    resp_headers,
+    
+    -- url_domain,
+    
     unique_domain_count_before_filtration,
     unique_domain_firstreq_count_before_filtration,
+    
     contains_nel,
+    nel_value,
+    
     nel_max_age,
     nel_failure_fraction,
     nel_success_fraction,
     nel_include_subdomains,
     nel_report_to_group,
-    nel_value,
-    resp_headers,
 
     (SELECT COUNT(*) FROM nel_values_extracted_table) AS nel_count_before_filtration,
-
+    -- rt_value
     REGEXP_EXTRACT(resp_headers, CONCAT(r"report[-]to\s*?[=].*([{](?:(?:[^\{]*?endpoints.*?[\[][^\[]*?[\]][^\}]*?)|(?:[^\{]*?endpoints.*?[\{][^\{]*?[\}]))?[^\]\}]*?group[\'\"][:]\s*?[\'\"]", nel_report_to_group, r"(?:(?:[^\}]*?endpoints[^\}]*?[\[][^\[]*?[\]][^\{]*?)|(?:[^\}]*?endpoints.*?[\{][^\{]*?[\}]))?.*?[}])")) AS rt_value,
 
     FROM nel_values_extracted_table
     /* END rt_extracted_values_table */
   )
+  
   /* START final_extracted_table */
   SELECT
   requestid,
+  firstReq,
   type,
   ext,
-  firstReq,
-  status,
   url,
+  status,
+  resp_headers,
+  
+  -- url_domain,
+  
   unique_domain_count_before_filtration,
   unique_domain_firstreq_count_before_filtration,
+  
   contains_nel,
+  nel_value,
+  
   nel_max_age,
   nel_failure_fraction,
   nel_success_fraction,
   nel_include_subdomains,
   nel_report_to_group,
-  nel_value,
-  rt_value,
-  resp_headers,
+  
   nel_count_before_filtration,
+  rt_value,
 
   REGEXP_EXTRACT(rt_value, r".*group[\"\']\s*:\s*[\"\'](.+?)[\"\']") AS rt_group,
 
   REGEXP_EXTRACT_ALL(rt_value, r"url[\"\']\s*:\s*[\"\']http[s]?:[\\]*?[\/][\\]*?[\/]([^\/]+?)[\\]*?[\/\"]") AS rt_endpoints,
-  REGEXP_EXTRACT(rt_value, r"url[\"\']\s*:\s*[\"\']http[s]?:[\\]*?[\/][\\]*?[\/]([^\/]+?)[\\]*?[\/\"]") AS rt_url,
+  REGEXP_EXTRACT(rt_value, r"url[\"\']\s*:\s*[\"\']http[s]?:[\\]*?[\/][\\]*?[\/]([^\/]+?)[\\]*?[\/\"]")     AS rt_url,
   REGEXP_EXTRACT(rt_value, r"url[\"\']\s*:\s*(?:[\"\']http[s]?:[\\]*?[\/][\\]*?[\/].*?([^\.]+?[.][^\.]+?)[\\]*?[\/\"])") AS rt_url_sld,
 
   FROM rt_extracted_values_table
@@ -177,37 +201,46 @@ WITH final_extracted_table AS (
 /* START TOP LEVEL QUERY */
 SELECT
 requestid,
+firstReq,
 type,
 ext,
-firstReq,
-status,
 url,
+status,
+resp_headers,
+
+-- url_domain,
+
 unique_domain_count_before_filtration,
 unique_domain_firstreq_count_before_filtration,
+
 contains_nel,
+nel_value,
+
 nel_max_age,
 nel_failure_fraction,
 nel_success_fraction,
 nel_include_subdomains,
 nel_report_to_group,
-nel_value,
-rt_value,
-resp_headers,
+
 nel_count_before_filtration,
+rt_value,
+
 rt_group,
 rt_endpoints,
 rt_url,
 rt_url_sld,
 
 FROM final_extracted_table
-# Filter out un-parseable data, 
-# Data must have both report_to and NEL header 
-# Filter out records containing either:
-#       non-json value, 
-#       bad formating (no value, missing brackets)
+
+-- Filter out un-parseable data, 
+-- Data must have both report_to and NEL header 
+-- Filter out records containing either:
+----     * non-json value, 
+----     * bad formating (no value, missing brackets)
 WHERE nel_report_to_group = rt_group and nel_report_to_group is not null and rt_group is not null;
 /* END TOP LEVEL QUERY */
 '''
+
 
 
 def processing_bytes_estimation(table_list, query_string):
