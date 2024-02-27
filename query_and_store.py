@@ -26,7 +26,7 @@ from google.cloud.bigquery_storage import BigQueryReadClient
 from google.cloud.bigquery_storage_v1 import types
 from google.oauth2 import service_account
 
-from bq_parametrized_queries import QUERY_NEL_VALUE_WITHOUT_FILTERING
+from src.bq_parametrized_queries import QUERY_NEL_VALUE_WITHOUT_FILTERING
 
 
 ###############################

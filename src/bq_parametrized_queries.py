@@ -1,7 +1,7 @@
 #
 # NEL data query supposed to extract request-response pairs that contained both NEL & Report-To headers in the responses
 #
-QUERY_NEL_DATA = """
+QUERY_NEL_DATA = r"""
 WITH final_extracted_table AS (
   WITH rt_extracted_values_table AS (
     WITH nel_values_extracted_table AS (
@@ -205,7 +205,6 @@ FROM final_extracted_table
 WHERE nel_report_to_group = rt_group and nel_report_to_group is not null and rt_group is not null;
 /* END TOP LEVEL QUERY */
 """
-
 
 # Part of the NEL_DATA query that:
 #    fetches the NEL http header value,
