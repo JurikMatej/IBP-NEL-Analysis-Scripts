@@ -24,7 +24,7 @@ mobile_summary_tables = [
     # 'httparchive.summary_requests.2020_02_01_mobile',
     # 'httparchive.summary_requests.2021_02_01_mobile',
     # 'httparchive.summary_requests.2022_02_01_mobile',
-    # 'httparchive.summary_requests.2023_02_01_mobile'
+    # 'httparchive.summary_requests.2023_02_01_mobile',
 ]
 
 desktop_summary_tables = [
@@ -33,7 +33,7 @@ desktop_summary_tables = [
     # 'httparchive.summary_requests.2020_02_01_desktop',
     # 'httparchive.summary_requests.2021_02_01_desktop',
     'httparchive.summary_requests.2021_01_01_desktop',
-    # 'httparchive.summary_requests.2022_02_01_desktop',1
+    # 'httparchive.summary_requests.2022_02_01_desktop',
 ]
 
 

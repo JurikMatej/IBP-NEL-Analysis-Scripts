@@ -118,6 +118,7 @@ def _create_temp_table(client: bigquery.Client):
     """
     table_id = f"{GC_PROJECT_NAME}.{GC_DATASET_NAME}.{GC_TABLE_NAME}"
 
+    # TODO minimize the schema for when downloading data for the whole time span
     nel_data_schema = [
         bigquery.SchemaField("requestId", "INTEGER"),
         bigquery.SchemaField("firstReq", "BOOLEAN"),
