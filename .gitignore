@@ -162,7 +162,6 @@ cython_debug/
 
 # Custom
 gcp-secrets/
-data_http_archive_raw/results_desktop/
-data_http_archive_raw/results_mobile/
+data_http_archive_raw/
 results_desktop_all_feb/
 results_mobile_all_feb/
