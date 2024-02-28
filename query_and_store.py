@@ -15,7 +15,7 @@ description:    Query the Google Cloud Platform's BigQuery for HTTP Archive data
 
 purpose:        Get raw data from the Google Cloud and store as an apache parquet file in order for it to be available
                 locally for further processing.
-                (IMPORTANT: do not modify the downloaded data itself - additional queries costs money)
+                (IMPORTANT: do not modify the downloaded data itself - additional queries cost money)
 """
 
 
@@ -141,6 +141,7 @@ def _create_temp_table(client: bigquery.Client):
         bigquery.SchemaField("rt_group", "STRING"),
         bigquery.SchemaField("rt_endpoints", "STRING"),
         bigquery.SchemaField("rt_url", "STRING"),
+        bigquery.SchemaField("rt_url_sld", "STRING"),
     ]
 
     table = bigquery.Table(table_id, schema=nel_data_schema)
