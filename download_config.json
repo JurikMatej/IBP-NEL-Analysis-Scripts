@@ -1,0 +1,370 @@
+[
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2018_09_01_desktop",
+      "httparchive.summary_requests.2018_09_15_desktop"
+    ],
+    "output_desktop": "2018_09_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2018_09_01_mobile",
+      "httparchive.summary_requests.2018_09_15_mobile"
+    ],
+    "output_mobile": "2018_09_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2018_10_01_desktop",
+      "httparchive.summary_requests.2018_10_15_desktop"
+    ],
+    "output_desktop": "2018_10_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2018_10_01_mobile",
+      "httparchive.summary_requests.2018_10_15_mobile"
+    ],
+    "output_mobile": "2018_10_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2018_11_01_desktop",
+      "httparchive.summary_requests.2018_11_15_desktop"
+    ],
+    "output_desktop": "2018_11_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2018_11_15_mobile"
+    ],
+    "output_mobile": "2018_11_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2018_12_15_desktop"
+    ],
+    "output_desktop": "2018_12_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2018_12_15_mobile"
+    ],
+    "output_mobile": "2018_12_mobile",
+
+    "public_suffix_list": ""
+  },
+
+
+
+
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2019_02_01_desktop"
+    ],
+    "output_desktop": "2019_02_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2019_02_01_mobile"
+    ],
+    "output_mobile": "2019_02_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2019_03_01_desktop"
+    ],
+    "output_desktop": "2019_03_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2019_03_01_mobile"
+    ],
+    "output_mobile": "2019_03_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2019_04_01_desktop"
+    ],
+    "output_desktop": "2019_04_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2019_04_01_mobile"
+    ],
+    "output_mobile": "2019_04_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2019_05_01_desktop"
+    ],
+    "output_desktop": "2019_05_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2019_05_01_mobile"
+    ],
+    "output_mobile": "2019_05_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2019_06_01_desktop"
+    ],
+    "output_desktop": "2019_06_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2019_06_01_mobile"
+    ],
+    "output_mobile": "2019_06_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2019_07_01_desktop"
+    ],
+    "output_desktop": "2019_07_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2019_07_01_mobile"
+    ],
+    "output_mobile": "2019_07_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2019_08_01_desktop"
+    ],
+    "output_desktop": "2019_08_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2019_08_01_mobile"
+    ],
+    "output_mobile": "2019_08_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2019_09_01_desktop"
+    ],
+    "output_desktop": "2019_09_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2019_09_01_mobile"
+    ],
+    "output_mobile": "2019_09_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2019_10_01_desktop"
+    ],
+    "output_desktop": "2019_10_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2019_10_01_mobile"
+    ],
+    "output_mobile": "2019_10_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2019_11_01_desktop"
+    ],
+    "output_desktop": "2019_11_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2019_11_01_mobile"
+    ],
+    "output_mobile": "2019_11_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2019_12_01_desktop"
+    ],
+    "output_desktop": "2019_12_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2019_12_01_mobile"
+    ],
+    "output_mobile": "2019_12_mobile",
+
+    "public_suffix_list": ""
+  },
+
+
+
+
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2020_01_01_desktop"
+    ],
+    "output_desktop": "2020_01_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2020_01_01_mobile"
+    ],
+    "output_mobile": "2020_01_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2020_02_01_desktop"
+    ],
+    "output_desktop": "2020_02_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2020_02_01_mobile"
+    ],
+    "output_mobile": "2020_02_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2020_03_01_desktop"
+    ],
+    "output_desktop": "2020_03_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2020_03_01_mobile"
+    ],
+    "output_mobile": "2020_03_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2020_04_01_desktop"
+    ],
+    "output_desktop": "2020_04_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2020_04_01_mobile"
+    ],
+    "output_mobile": "2020_04_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2020_05_01_desktop"
+    ],
+    "output_desktop": "2020_05_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2020_05_01_mobile"
+    ],
+    "output_mobile": "2020_05_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2020_06_01_desktop"
+    ],
+    "output_desktop": "2020_06_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2020_06_01_mobile"
+    ],
+    "output_mobile": "2020_06_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2020_07_01_desktop"
+    ],
+    "output_desktop": "2020_07_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2020_07_01_mobile"
+    ],
+    "output_mobile": "2020_07_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2020_08_01_desktop"
+    ],
+    "output_desktop": "2020_08_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2020_08_01_mobile"
+    ],
+    "output_mobile": "2020_08_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2020_09_01_desktop"
+    ],
+    "output_desktop": "2020_09_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2020_09_01_mobile"
+    ],
+    "output_mobile": "2020_09_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2020_10_01_desktop"
+    ],
+    "output_desktop": "2020_10_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2020_10_01_mobile"
+    ],
+    "output_mobile": "2020_10_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2020_11_01_desktop"
+    ],
+    "output_desktop": "2020_11_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2020_11_01_mobile"
+    ],
+    "output_mobile": "2020_11_mobile",
+
+    "public_suffix_list": ""
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2020_12_01_desktop"
+    ],
+    "output_desktop": "2020_12_desktop",
+
+    "input_mobile": [
+      "httparchive.summary_requests.2020_12_01_mobile"
+    ],
+    "output_mobile": "2020_12_mobile",
+
+    "public_suffix_list": ""
+  }
+
+
+
+
+]

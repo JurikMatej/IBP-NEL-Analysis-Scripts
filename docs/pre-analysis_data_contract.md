@@ -28,6 +28,16 @@ That is, analysis data **only contains correctly functional NEL** deployment ins
 NEL deployment is correctly functional only when HTTP response from the target web server contains a valid `NEL` and
 a valid `Report-To` headers with matching `NEL.report-to` and `Report-To.group` HTTP header values.
 
+#### NEL deployment approximate starting date
+
+The first NEL specification was publicly released by W3C on 11th February 2014 (First Public Working Draft).
+The developers continued to work on the specification until 24th May 2016 when they decided to retire their work.
+The first working draft after this retirement was released on 25th September 2018.
+Based on this version of NEL, **the first relevant NEL deployment sample data** can be searched for in HTTP Archive dataset 
+table with crawl date of **1st October 2018**.
+
+### Schema
+
 Abbreviation Legend:
 
 | Abbrev. | Full name             |
@@ -35,7 +45,6 @@ Abbreviation Legend:
 | nel     | Network Error Logging |
 | rt      | Report To             |
 
-### Schema
 
 | Key                              |  Type   | Default To | Description                                                                                                                                                                                                                  |
 |:---------------------------------|:-------:|:----------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
