@@ -38,8 +38,8 @@ WITH final_extracted_table AS (
 
         /*REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain,*/
 
-        (SELECT COUNT(*) FROM base_table) AS unique_domain_count_before_filtration,
-        (SELECT COUNT(*) FROM base_table WHERE firstReq = true) AS unique_domain_firstreq_count_before_filtration,
+        (SELECT COUNT(*) FROM base_table) AS total_crawled_resources,
+        (SELECT COUNT(*) FROM base_table WHERE firstReq = true) AS total_crawled_domains,
 
         REGEXP_CONTAINS(resp_headers, r"(?:^|.*[\s,]+)(nel\s*[=]\s*)") AS contains_nel,
         REGEXP_EXTRACT(resp_headers, r"(?:^|.*[\s,]+)nel\s*[=]\s*({.*?})") AS nel_value,
@@ -63,8 +63,8 @@ WITH final_extracted_table AS (
 
       -- url_domain,
 
-      unique_domain_count_before_filtration,
-      unique_domain_firstreq_count_before_filtration,
+      total_crawled_resources,
+      total_crawled_domains,
 
       contains_nel,
       nel_value,
@@ -75,7 +75,7 @@ WITH final_extracted_table AS (
       REGEXP_EXTRACT(nel_value, r".*success[_]fraction[\"\']\s*:\s*([0-9\.]+)") AS nel_success_fraction,
       REGEXP_EXTRACT(nel_value, r".*include[_]subdomains[\"\']\s*:\s*(\w+)")    AS nel_include_subdomains,
 
-      REGEXP_EXTRACT(nel_value, r".*report_to[\"\']\s*:\s*[\"\'](.+?)[\"\']")   AS nel_report_to_group,
+      REGEXP_EXTRACT(nel_value, r".*report_to[\"\']\s*:\s*[\"\'](.+?)[\"\']")   AS nel_report_to,
 
       FROM nel_extracted_table
 
@@ -97,12 +97,11 @@ WITH final_extracted_table AS (
     ext,
     url,
     status,
-    resp_headers,
 
     -- url_domain,
 
-    unique_domain_count_before_filtration,
-    unique_domain_firstreq_count_before_filtration,
+    total_crawled_resources,
+    total_crawled_domains,
 
     contains_nel,
     nel_value,
@@ -111,11 +110,11 @@ WITH final_extracted_table AS (
     nel_failure_fraction,
     nel_success_fraction,
     nel_include_subdomains,
-    nel_report_to_group,
+    nel_report_to,
 
-    (SELECT COUNT(*) FROM nel_values_extracted_table) AS nel_count_before_filtration,
+    (SELECT COUNT(*) FROM nel_values_extracted_table) AS total_crawled_resources_with_nel,
     -- rt_value
-    REGEXP_EXTRACT(resp_headers, CONCAT(r"report[-]to\s*?[=].*([{](?:(?:[^\{]*?endpoints.*?[\[][^\[]*?[\]][^\}]*?)|(?:[^\{]*?endpoints.*?[\{][^\{]*?[\}]))?[^\]\}]*?group[\'\"][:]\s*?[\'\"]", nel_report_to_group, r"(?:(?:[^\}]*?endpoints[^\}]*?[\[][^\[]*?[\]][^\{]*?)|(?:[^\}]*?endpoints.*?[\{][^\{]*?[\}]))?.*?[}])")) AS rt_value,
+    REGEXP_EXTRACT(resp_headers, CONCAT(r"report[-]to\s*?[=].*([{](?:(?:[^\{]*?endpoints.*?[\[][^\[]*?[\]][^\}]*?)|(?:[^\{]*?endpoints.*?[\{][^\{]*?[\}]))?[^\]\}]*?group[\'\"][:]\s*?[\'\"]", nel_report_to, r"(?:(?:[^\}]*?endpoints[^\}]*?[\[][^\[]*?[\]][^\{]*?)|(?:[^\}]*?endpoints.*?[\{][^\{]*?[\}]))?.*?[}])")) AS rt_value,
 
     FROM nel_values_extracted_table
     /* END rt_extracted_values_table */
@@ -130,12 +129,11 @@ WITH final_extracted_table AS (
   ext,
   url,
   status,
-  resp_headers,
 
   -- url_domain,
 
-  unique_domain_count_before_filtration,
-  unique_domain_firstreq_count_before_filtration,
+  total_crawled_resources,
+  total_crawled_domains,
 
   contains_nel,
   nel_value,
@@ -144,19 +142,15 @@ WITH final_extracted_table AS (
   nel_failure_fraction,
   nel_success_fraction,
   nel_include_subdomains,
-  nel_report_to_group,
+  nel_report_to,
 
-  nel_count_before_filtration,
+  total_crawled_resources_with_nel,
   rt_value,
 
   REGEXP_EXTRACT(rt_value, r".*group[\"\']\s*:\s*[\"\'](.+?)[\"\']") AS rt_group,
 
   REGEXP_EXTRACT_ALL(rt_value, r"url[\"\']\s*:\s*[\"\']http[s]?:[\\]*?[\/][\\]*?[\/]([^\/]+?)[\\]*?[\/\"]")
-    AS rt_endpoints,
-  REGEXP_EXTRACT(rt_value, r"url[\"\']\s*:\s*[\"\']http[s]?:[\\]*?[\/][\\]*?[\/]([^\/]+?)[\\]*?[\/\"]")
-    AS rt_url,
-  REGEXP_EXTRACT(rt_value, r"url[\"\']\s*:\s*(?:[\"\']http[s]?:[\\]*?[\/][\\]*?[\/].*?([^\.]+?[.][^\.]+?)[\\]*?[\/\"])")
-    AS rt_url_sld,
+    AS rt_collectors,
 
   FROM rt_extracted_values_table
   /* END final_extracted_table */
@@ -171,29 +165,22 @@ type,
 ext,
 url,
 status,
-resp_headers,
 
 -- url_domain,
 
-unique_domain_count_before_filtration,
-unique_domain_firstreq_count_before_filtration,
-
-contains_nel,
-nel_value,
+total_crawled_resources,
+total_crawled_domains,
 
 nel_max_age,
 nel_failure_fraction,
 nel_success_fraction,
 nel_include_subdomains,
-nel_report_to_group,
+nel_report_to,
 
-nel_count_before_filtration,
-rt_value,
+total_crawled_resources_with_nel,
 
 rt_group,
-rt_endpoints,
-rt_url,
-rt_url_sld,
+rt_collectors,
 
 FROM final_extracted_table
 
@@ -202,7 +189,7 @@ FROM final_extracted_table
 -- Filter out records containing either:
 ----     * non-json value,
 ----     * bad formatting (no value, missing brackets)
-WHERE nel_report_to_group = rt_group and nel_report_to_group is not null and rt_group is not null;
+WHERE nel_report_to = rt_group and nel_report_to is not null and rt_group is not null;
 /* END TOP LEVEL QUERY */
 """
 
@@ -238,12 +225,11 @@ QUERY_NEL_VALUE_WITHOUT_FILTERING = r"""
         ext,
         url,
         status,
-        resp_headers,
 
         /*REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain,*/
 
-        (SELECT COUNT(*) FROM base_table) AS unique_domain_count_before_filtration,
-        (SELECT COUNT(*) FROM base_table WHERE firstReq = true) AS unique_domain_firstreq_count_before_filtration,
+        (SELECT COUNT(*) FROM base_table) AS total_crawled_resources,
+        (SELECT COUNT(*) FROM base_table WHERE firstReq = true) AS total_crawled_domains,
 
         REGEXP_CONTAINS(resp_headers, r"(?:^|.*[\s,]+)(nel\s*[=]\s*)") AS contains_nel,
         REGEXP_EXTRACT(resp_headers, r"(?:^|.*[\s,]+)nel\s*[=]\s*({.*?})") AS nel_value,

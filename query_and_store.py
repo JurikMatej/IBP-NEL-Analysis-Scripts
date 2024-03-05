@@ -18,6 +18,8 @@ purpose:        Get raw data from the Google Cloud and store as an apache parque
                 (IMPORTANT: do not modify the downloaded data itself - additional queries cost money)
 """
 
+# TODO make download size estimates
+
 
 import google.api_core.exceptions
 import pandas as pd
@@ -118,7 +120,6 @@ def _create_temp_table(client: bigquery.Client):
     """
     table_id = f"{GC_PROJECT_NAME}.{GC_DATASET_NAME}.{GC_TABLE_NAME}"
 
-    # TODO minimize the schema for when downloading data for the whole time span
     nel_data_schema = [
         bigquery.SchemaField("requestId", "INTEGER"),
         bigquery.SchemaField("firstReq", "BOOLEAN"),
@@ -126,22 +127,16 @@ def _create_temp_table(client: bigquery.Client):
         bigquery.SchemaField("ext", "STRING"),
         bigquery.SchemaField("url", "STRING"),
         bigquery.SchemaField("status", "INTEGER"),
-        bigquery.SchemaField("resp_headers", "STRING"),
-        bigquery.SchemaField("unique_domain_count_before_filtration", "INTEGER"),
-        bigquery.SchemaField("unique_domain_firstreq_count_before_filtration", "INTEGER"),
-        bigquery.SchemaField("contains_nel", "BOOLEAN"),
-        bigquery.SchemaField("nel_value", "STRING"),
+        bigquery.SchemaField("total_crawled_resources", "INTEGER"),
+        bigquery.SchemaField("total_crawled_domains", "INTEGER"),
         bigquery.SchemaField("nel_max_age", "STRING"),
         bigquery.SchemaField("nel_failure_fraction", "STRING"),
         bigquery.SchemaField("nel_success_fraction", "STRING"),
         bigquery.SchemaField("nel_include_subdomains", "STRING"),
-        bigquery.SchemaField("nel_report_to_group", "STRING"),
-        bigquery.SchemaField("nel_count_before_filtration", "STRING"),
-        bigquery.SchemaField("rt_value", "STRING"),
+        bigquery.SchemaField("nel_report_to", "STRING"),
+        bigquery.SchemaField("total_crawled_resources_with_nel", "STRING"),
         bigquery.SchemaField("rt_group", "STRING"),
-        bigquery.SchemaField("rt_endpoints", "STRING"),
-        bigquery.SchemaField("rt_url", "STRING"),
-        bigquery.SchemaField("rt_url_sld", "STRING"),
+        bigquery.SchemaField("rt_collectors", "STRING"),
     ]
 
     table = bigquery.Table(table_id, schema=nel_data_schema)
