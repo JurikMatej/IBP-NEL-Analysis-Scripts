@@ -17,19 +17,23 @@ purpose:        Get raw data from the Google Cloud and store as an apache parque
                 locally for further processing.
                 (IMPORTANT: do not modify the downloaded data itself - additional queries cost money)
 """
+import os
+from pathlib import Path
 
 # TODO make download size estimates
 
 
 import google.api_core.exceptions
 import pandas as pd
+import time
+import pyarrow.parquet as pq
 from google.cloud import bigquery
+from google.cloud import storage
 from google.cloud.bigquery_storage import BigQueryReadClient
 from google.cloud.bigquery_storage_v1 import types
 from google.oauth2 import service_account
 
-from src.bq_parametrized_queries import QUERY_NEL_VALUE_WITHOUT_FILTERING
-
+from src.bq_parametrized_queries import QUERY_NEL_DATA
 
 ###############################
 # CONFIGURE THESE BEFORE USE: #
@@ -38,13 +42,18 @@ GC_PROJECT_NAME = 'nel-analysis'
 GC_DATASET_NAME = 'httparchive_fetch_temp'
 GC_TABLE_NAME = 'nel_data'
 
-GC_PATH_TO_CREDENTIALS_FILE = "gcp-secrets/nel-analysis-9e204ca4bd59-admin.json"
+GC_TABLE_LOCATION = "US"
 
-# TODO get the eTLD with NET.PUBLIC_SUFFIX(url)
-DATA_PREPARATION_NEL_DATA_QUERY = QUERY_NEL_VALUE_WITHOUT_FILTERING
-# TODO Elaborate on the data structure used for them tables to download
-# TODO external config for the analysis-wide used tables
-DATA_PREPARATION_HTTP_ARCHIVE_SOURCE_TABLE = 'httparchive.summary_requests.2016_02_15_mobile'
+GC_PATH_TO_CREDENTIALS_FILE = "gcp-secrets/nel-analysis-f1c127130c7f-nel-analysis-admin.json"
+
+DATA_EXPORT_BUCKET_NAME = "downloadable-nel-analysis-data"
+
+DATA_PREPARATION_NEL_DATA_QUERY = QUERY_NEL_DATA
+
+# TODO(config) Create external config - TABLES_TO_DOWNLOAD > RESULT_TABLES_FOR_POST_PROCESS + ASSIGNED_PSL_FILE
+# DATA_PREPARATION_HTTP_ARCHIVE_SOURCE_TABLE = 'httparchive.summary_requests.2016_02_15_mobile'
+# DATA_PREPARATION_HTTP_ARCHIVE_SOURCE_TABLE = 'httparchive.summary_requests.2021_01_01_desktop'
+DATA_PREPARATION_HTTP_ARCHIVE_SOURCE_TABLE = 'httparchive.summary_requests.2020_02_01_desktop'
 
 
 def prepare_nel_data_table():
@@ -53,8 +62,8 @@ def prepare_nel_data_table():
     Create a temporary dataset, a temporary table inside of it and eventually also query HTTP Archive data into it.
     After this function completes successfully, the requested table is available at BigQuery to be downloaded
 
-    TODO remove the population step from this function. Structure is first to be created and then populated iteratively
-         with many HTTP Archive tables of custom selection
+    TODO(refactor) remove the population step from this function. Structure is first to be created and then populated
+        iteratively with many HTTP Archive tables of custom selection
     """
     print("##########...Preparing temporary infrastructure for NEL analysis data...##########")
 
@@ -176,7 +185,8 @@ def download_nel_data_table():
     This function uses different API for the data transfer - Google Cloud BigQuery Storage API, which allows for the
     large sized data to be transferred from BigQuery.
 
-    TODO ask for user's permission for every table, check also for the table already being in the target dir
+    TODO(costs) ask for user's permission for every table, check also for the table already being in the target dir
+    TODO(cleanup) this is probably not needed anymore
     """
 
     print("####################...Downloading NEL data...####################")
@@ -208,7 +218,9 @@ def download_nel_data_table():
         data.append(row)
 
     df = pd.DataFrame(data)
-    df.to_parquet("./data_http_archive_raw/temp/test.parquet")
+    df.to_parquet(f"./data_http_archive_raw/{DATA_PREPARATION_HTTP_ARCHIVE_SOURCE_TABLE}.parquet")
+
+    print("NEL data downloaded successfully")
 
 
 def _bq_storage_read_session_client():
@@ -223,14 +235,101 @@ def delete_nel_data_table():
     raise NotImplementedError()
 
 
+def export_nel_data_table():
+    print("####################...Extracting NEL data...####################")
+    client = _bq_infrastructure_administration_client()
+
+    destination_uri = "gs://{}/{}".format(DATA_EXPORT_BUCKET_NAME,
+                                          f"{DATA_PREPARATION_HTTP_ARCHIVE_SOURCE_TABLE}-*.parquet.snappy")
+    dataset_ref = bigquery.DatasetReference(GC_PROJECT_NAME, GC_DATASET_NAME)
+    table_ref = dataset_ref.table(GC_TABLE_NAME)
+
+    job_config = bigquery.job.ExtractJobConfig()
+    job_config.destination_format = bigquery.DestinationFormat.PARQUET
+    job_config.compression = bigquery.Compression.SNAPPY
+
+    extract_job = client.extract_table(
+        table_ref,
+        destination_uri,
+        location=GC_TABLE_LOCATION,
+        job_config=job_config,
+    )
+
+    extract_job.result()  # Waits for job to complete.
+
+    print("NEL data exported successfully and is ready to be downloaded")
+
+
+def download_exported_nel_data():
+    print("####################...Downloading exported NEL data...####################")
+    storage_client = storage.Client.from_service_account_json(GC_PATH_TO_CREDENTIALS_FILE)
+    bucket = storage_client.get_bucket(DATA_EXPORT_BUCKET_NAME)
+    blobs = bucket.list_blobs(prefix=DATA_PREPARATION_HTTP_ARCHIVE_SOURCE_TABLE)
+
+    dl_time = time.time()
+
+    # TODO make sure the output dir exists
+    for blob in blobs:
+        destination_uri = '{}/{}'.format("data_http_archive_raw/gs_test", blob.name)
+        blob.download_to_filename(destination_uri)
+
+    print("Exported NEL data downloaded successfully")
+    print(f"Download time: {time.time() - dl_time}")
+
+
+def gather_downloaded_nel_data_files():
+    print("####################...Gathering downloaded NEL data into a single file...####################")
+    gather_time = time.time()
+
+    data_dir = Path('data_http_archive_raw/gs_test')
+    files = list(data_dir.glob('*.parquet.snappy'))
+
+    if len(files) < 1:
+        print("Download completed with 0 files downloaded, aborting gathering downloaded NEL data into a single file")
+        return
+
+    schema = pq.ParquetFile(files[0]).schema_arrow
+    with pq.ParquetWriter("data_http_archive_raw/gs_test_result.parquet", schema=schema) as writer:
+        for parquet_file in files:
+            writer.write_table(pq.read_table(parquet_file, schema=schema))
+
+    print()
+    print(f"Result filesize: {os.path.getsize('data_http_archive_raw/gs_test_result.parquet') / 2 ** 30} GB")
+    print(f"Gather time time: {time.time() - gather_time}")
+
+
+def delete_exported_nel_data():
+    print("####################...Deleting exported NEL data...####################")
+    storage_client = storage.Client.from_service_account_json(GC_PATH_TO_CREDENTIALS_FILE)
+    bucket = storage_client.get_bucket(DATA_EXPORT_BUCKET_NAME)
+    blobs = bucket.list_blobs(prefix=DATA_PREPARATION_HTTP_ARCHIVE_SOURCE_TABLE)
+
+    for blob in blobs:
+        blob.delete()
+
+    print("Exported NEL data deleted successfully")
+
+
 def main():
     # prepare_nel_data_table()
     # print()
 
-    # download_nel_data_table()
+    # export_nel_data_table()
+    # print()
+
+    # download_exported_nel_data()
+    # print()
+
+    gather_downloaded_nel_data_files()
+    print()
+
+    # delete_exported_nel_data()
     # print()
 
     # TODO consider
+    # download_nel_data_table()
+    # print()
+
     # delete_nel_data_table()
 
     pass
