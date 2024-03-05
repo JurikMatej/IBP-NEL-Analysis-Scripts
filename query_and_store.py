@@ -134,9 +134,9 @@ def _create_temp_table(client: bigquery.Client):
         bigquery.SchemaField("nel_success_fraction", "STRING"),
         bigquery.SchemaField("nel_include_subdomains", "STRING"),
         bigquery.SchemaField("nel_report_to", "STRING"),
-        bigquery.SchemaField("total_crawled_resources_with_nel", "STRING"),
+        bigquery.SchemaField("total_crawled_resources_with_nel", "INTEGER"),
         bigquery.SchemaField("rt_group", "STRING"),
-        bigquery.SchemaField("rt_collectors", "STRING"),
+        bigquery.SchemaField("rt_collectors", "STRING", mode="REPEATED"),
     ]
 
     table = bigquery.Table(table_id, schema=nel_data_schema)

@@ -231,9 +231,6 @@ QUERY_NEL_VALUE_WITHOUT_FILTERING = r"""
         (SELECT COUNT(*) FROM base_table) AS total_crawled_resources,
         (SELECT COUNT(*) FROM base_table WHERE firstReq = true) AS total_crawled_domains,
 
-        REGEXP_CONTAINS(resp_headers, r"(?:^|.*[\s,]+)(nel\s*[=]\s*)") AS contains_nel,
-        REGEXP_EXTRACT(resp_headers, r"(?:^|.*[\s,]+)nel\s*[=]\s*({.*?})") AS nel_value,
-
         FROM base_table
         /* END nel_extracted_table */
 """
