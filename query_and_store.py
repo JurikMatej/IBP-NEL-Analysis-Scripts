@@ -24,16 +24,13 @@ import pathlib
 import time
 
 import google.api_core.exceptions
-import pandas as pd
 import pyarrow.parquet as pq
 from google.cloud import bigquery
 from google.cloud import storage
 from google.cloud.bigquery_storage import BigQueryReadClient
-from google.cloud.bigquery_storage_v1 import types
 from google.oauth2 import service_account
 
 from src.bq_parametrized_queries import QUERY_NEL_DATA
-
 
 ###############################
 # CONFIGURE THESE BEFORE USE: #
@@ -256,9 +253,11 @@ def gather_downloaded_nel_data_files(result_data_file_name: str):
         for parquet_file in files:
             writer.write_table(pq.read_table(parquet_file, schema=schema))
 
+    # TODO delete blobs
+
     print()
     print(f"Result filesize: {os.path.getsize(result_path) / 2 ** 30} GB")
-    print(f"Gather time time: {time.time() - gather_time}")
+    print(f"Gather time: {time.time() - gather_time}")
 
 
 def delete_exported_nel_data(original_source_table_name: str):

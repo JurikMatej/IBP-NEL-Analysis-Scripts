@@ -123,7 +123,10 @@ TODO with this, find and filter out incorrectly set values before `Analyze` stag
 
 ### New analysis metrics (*can be derived from obtained results of base metrics)
 
-1. The type of resource NEL is used for the most
+1. The beginning of NEL
+   - Who used NEL the first and when
+
+2. The type of resource NEL is used for the most
     1. Take a month from the nel data
     2. Extract all TYPE values and sort them by count of their occurrence (as a NEL monitored resource type)
     3. Calculate the ratio of the total use for each TYPE
@@ -131,23 +134,23 @@ TODO with this, find and filter out incorrectly set values before `Analyze` stag
     5. Calculate the ratio of the total use of the most used EXT for a specific TYPE
 
 
-2. Famous / Popular companies using NEL
+3. Famous / Popular companies using NEL
     - Use a list of popular domains to filter domains like these out
     - Or observe manually
 
 
-3. Usage of NEL over time
+4. Usage of NEL over time
     - In the aggregated set of NEL usage metric data, look for trends to describe (company started using, stopped, then
       after 2 years started again)
 
 
-4. Trends emerging over the years
+5. Trends emerging over the years
     - Preferred configuration field values during certain times
     - Configuration almost never used
     - Companies starting to use NEL in big numbers
     - Companies stopping to use NEL in big numbers
 
 
-5. Domains eligible for real-time analysis
+6. Domains eligible for real-time analysis
     1. Pick out some domains having a large number of subdomains and sub-pages crawled on HTTP Archive
     2. Run Selenium scripts on those and compare output
