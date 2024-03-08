@@ -33,7 +33,7 @@ POSTPROCESS_OUTPUT_DIR_PATH = "httparchive_data_processed"
 
 
 # LOGGING
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format='%(asctime)s:%(message)s')
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format='%(asctime)s:\t%(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -65,7 +65,7 @@ def load_and_merge_month_data(source_file_names: List[str]) -> pd.DataFrame:
             result = tmp_df
         else:
             # TODO consult with supervisor - LEFT JOIN causes 01.MM.20YY NEL data to override eg.: 15.MM.20YY
-            result.merge(tmp_df, how="left", on="url")
+            result = pd.concat([result, tmp_df]).drop_duplicates(['url']).reset_index()
 
     return result
 
@@ -77,7 +77,8 @@ def merge_desktop_with_mobile(desktop_df: pd.DataFrame, mobile_df: pd.DataFrame)
 
     try:
         # Merge using Desktop as the default on conflict
-        return desktop_df.merge(mobile_df, how="left", on="url")
+        # return desktop_df.merge(mobile_df, how="left", on="url")
+        return pd.concat([desktop_df, mobile_df]).drop_duplicates(['url']).reset_index()
     except IndexError:
         # Upon one of the DFs being empty
         return desktop_df if not desktop_df.empty else mobile_df
