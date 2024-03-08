@@ -152,6 +152,8 @@ WITH final_extracted_table AS (
   REGEXP_EXTRACT_ALL(rt_value, r"url[\"\']\s*:\s*[\"\']http[s]?:[\\]*?[\/][\\]*?[\/]([^\/]+?)[\\]*?[\/\"]")
     AS rt_collectors,
 
+  ROW_NUMBER() OVER (PARTITION BY url ORDER BY requestId) AS unique_url_occurrence
+
   FROM rt_extracted_values_table
   /* END final_extracted_table */
 )
@@ -189,7 +191,8 @@ FROM final_extracted_table
 -- Filter out records containing either:
 ----     * non-json value,
 ----     * bad formatting (no value, missing brackets)
-WHERE nel_report_to = rt_group and nel_report_to is not null and rt_group is not null;
+WHERE nel_report_to = rt_group and nel_report_to is not null and rt_group is not null 
+      and unique_url_occurrence = 1; -- And make sure that URLs are distinct (query results contained duplicate rows without this filter)
 /* END TOP LEVEL QUERY */
 """
 
