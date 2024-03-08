@@ -1,0 +1,6 @@
+requestid,type,ext,firstReq,status,url,unique_domain_count_before_filtration,unique_domain_firstreq_count_before_filtration,contains_nel,nel_max_age,nel_failure_fraction,nel_success_fraction,nel_include_subdomains,nel_report_to_group,nel_count_before_filtration,rt_group,rt_endpoints,rt_url,rt_url_sld
+2697438644,script,,false,200,http://cpqa.catchpoint.com/jp/191/v3.1.5/M,1897002,1153295,true,2592000,1.0,0,true,network-errors,6,network-errors,[rqa.3genlabs.net],rqa.3genlabs.net,3genlabs.net
+2756865876,html,,true,200,https://insertmedia.bing.office.net/,1897002,1153295,true,604800,1.0,0.01,,network-errors,6,network-errors,[nel.bingparachute.com],nel.bingparachute.com,bingparachute.com
+2789307056,html,,true,200,https://www.gtopala.com/,1897002,1153295,true,31536000,,,,default,6,default,[gtopala.report-uri.com],gtopala.report-uri.com,report-uri.com
+2770687348,html,,true,200,https://m2.cn.bing.com/,1897002,1153295,true,604800,1.0,0.01,,network-errors,6,network-errors,[nel.bingparachute.com],nel.bingparachute.com,bingparachute.com
+2799279801,html,,true,200,https://scotthelme.co.uk/,1897002,1153295,true,10886400,,,,default,6,default,[scotthelme.report-uri.com],scotthelme.report-uri.com,report-uri.com
