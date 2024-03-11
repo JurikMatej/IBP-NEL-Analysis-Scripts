@@ -272,7 +272,7 @@ def populate_temp_table_with_query_results(client: bigquery.Client, query_string
     :param query_string: Query to use for table population
     :param output_filename: Name of the output file (here only for logging info)
     """
-    logger.info(f"##### Populating data for: {output_filename.upper()}")
+    logger.info(f"##### Populating data: ---{output_filename.upper()}---")
 
     target_table_id = f"{GC_PROJECT_NAME}.{GC_BQ_DATASET_NAME}.{GC_BQ_TEMP_TABLE_NAME}"
     job_config = bigquery.QueryJobConfig(destination=target_table_id)
@@ -295,7 +295,7 @@ def export_temp_table_to_storage_bucket_blobs(blob_name_prefix: str):
                                 ...
                                 * blob_name_prefix-0000000N.parquet.snappy
     """
-    logger.info("##### Extracting NEL data")
+    logger.info(f"##### Extracting NEL data: ---{blob_name_prefix.upper()}---")
     client = _bq_infrastructure_administration_client()
 
     destination_uri = "gs://{}/{}".format(DATA_EXPORT_BUCKET_NAME,
@@ -326,7 +326,7 @@ def download_blobs_from_storage_bucket(storage_client: google.cloud.storage.Clie
     :param storage_client: Google Cloud Storage API client able to download blobs from a bucket
     :param blob_name_prefix: Name prefix for the blobs to download from the bucket
     """
-    logger.info("##### Downloading exported NEL data")
+    logger.info(f"##### Downloading exported NEL data: ---{blob_name_prefix.upper()}---")
 
     bucket = storage_client.get_bucket(DATA_EXPORT_BUCKET_NAME)
     blobs = bucket.list_blobs(prefix=blob_name_prefix)
@@ -347,7 +347,7 @@ def merge_downloaded_blobs_into_single_file(result_data_file_name: str):
 
     :param result_data_file_name: The name of the resulting single .parquet file
     """
-    logger.info("##### Gathering downloaded NEL data into a single file")
+    logger.info(f"##### Gathering downloaded NEL data into a single file ---{result_data_file_name.upper()}---")
 
     gather_time = time.time()
 
@@ -390,7 +390,7 @@ def clean_storage_bucket(storage_client: google.cloud.storage.Client, blob_name_
     :param storage_client: Instance of the Google Cloud Storage client
     :param blob_name_prefix: Name prefix of the blobs to delete
     """
-    logger.info("##### Deleting exported NEL data")
+    logger.info(f"##### Deleting exported NEL data: ---{blob_name_prefix.upper()}---")
 
     bucket = storage_client.get_bucket(DATA_EXPORT_BUCKET_NAME)
     blobs = bucket.list_blobs(prefix=blob_name_prefix)
@@ -401,14 +401,14 @@ def clean_storage_bucket(storage_client: google.cloud.storage.Client, blob_name_
     logger.info("Exported NEL data deleted successfully")
 
 
-def clean_temp_table(client: google.cloud.bigquery.Client):
+def clean_temp_table(client: google.cloud.bigquery.Client, original_table_name: str):
     """
     Clean the temporary table - delete all rows from it
 
     :param client: Basic Google Cloud BigQuery API client with credentials and project ID
                    already provided
     """
-    logger.info("##### Deleting temporary NEL data table contents")
+    logger.info(f"##### Deleting temporary NEL data table contents: ---{original_table_name.upper()}---")
 
     table_id = f"{GC_PROJECT_NAME}.{GC_BQ_DATASET_NAME}.{GC_BQ_TEMP_TABLE_NAME}"
     delete_table_contents_query = f"DELETE FROM `{table_id}` WHERE 1=1;"
@@ -423,7 +423,12 @@ def main():
     query_client = _bq_infrastructure_administration_client()
     storage_client = _gc_storage_client()
 
+    # Prepare GC BQ Infrastructure
     prepare_nel_data_table()
+    print()
+
+    # Prepare GCS bucket (clean all blobs)
+    clean_storage_bucket(storage_client, "")
     print()
 
     # Prepare download infrastructure on this device
@@ -434,7 +439,7 @@ def main():
         download_conf = json.loads(config_file.read())
 
         for item in download_conf:
-            desktop_table_list = item.get('input_desktop', [])
+            desktop_table_list = item.get('input_desktop', ["NOT PROVIDED"])
             mobile_table_list = item.get('input_mobile', [])
 
             # Ensure the download config entry contains a "processed_output" output filename value
@@ -468,8 +473,9 @@ def main():
             clean_storage_bucket(storage_client, output_filename)
             print()
 
-            clean_temp_table(query_client)
-            print()
+            clean_temp_table(query_client, output_filename)
+
+    logger.info("All items downloaded. Exiting...")
 
 
 if '__main__' == __name__:
