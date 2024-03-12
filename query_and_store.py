@@ -272,7 +272,7 @@ def populate_temp_table_with_query_results(client: bigquery.Client, query_string
     :param query_string: Query to use for table population
     :param output_filename: Name of the output file (here only for logging info)
     """
-    logger.info(f"##### Populating data: ---{output_filename.upper()}---")
+    logger.info(f"##### Populating temp table: ---{output_filename.upper()}---")
 
     target_table_id = f"{GC_PROJECT_NAME}.{GC_BQ_DATASET_NAME}.{GC_BQ_TEMP_TABLE_NAME}"
     job_config = bigquery.QueryJobConfig(destination=target_table_id)
@@ -295,7 +295,7 @@ def export_temp_table_to_storage_bucket_blobs(blob_name_prefix: str):
                                 ...
                                 * blob_name_prefix-0000000N.parquet.snappy
     """
-    logger.info(f"##### Extracting NEL data: ---{blob_name_prefix.upper()}---")
+    logger.info(f"##### Exporting temp table: ---{blob_name_prefix.upper()}---")
     client = _bq_infrastructure_administration_client()
 
     destination_uri = "gs://{}/{}".format(DATA_EXPORT_BUCKET_NAME,
@@ -326,7 +326,7 @@ def download_blobs_from_storage_bucket(storage_client: google.cloud.storage.Clie
     :param storage_client: Google Cloud Storage API client able to download blobs from a bucket
     :param blob_name_prefix: Name prefix for the blobs to download from the bucket
     """
-    logger.info(f"##### Downloading exported NEL data: ---{blob_name_prefix.upper()}---")
+    logger.info(f"##### Downloading exported NEL data from storage: ---{blob_name_prefix.upper()}---")
 
     bucket = storage_client.get_bucket(DATA_EXPORT_BUCKET_NAME)
     blobs = bucket.list_blobs(prefix=blob_name_prefix)
@@ -347,16 +347,16 @@ def merge_downloaded_blobs_into_single_file(result_data_file_name: str):
 
     :param result_data_file_name: The name of the resulting single .parquet file
     """
-    logger.info(f"##### Gathering downloaded NEL data into a single file ---{result_data_file_name.upper()}---")
+    logger.info(f"##### Merging downloaded NEL data into a single file ---{result_data_file_name.upper()}---")
 
-    gather_time = time.time()
+    merge_time = time.time()
 
     blob_dir = pathlib.Path(DOWNLOAD_TEMP_BLOBS_DIR_PATH)
     files = list(blob_dir.glob('*.parquet.snappy'))
 
     if len(files) < 1:
         logger.warning("Download completed with 0 files downloaded, "
-                       "aborting gathering downloaded NEL data into a single file")
+                       "aborting merging downloaded NEL data into a single file")
         return
 
     schema = pq.ParquetFile(files[0]).schema_arrow
@@ -364,14 +364,14 @@ def merge_downloaded_blobs_into_single_file(result_data_file_name: str):
     result_path = f"{DOWNLOAD_OUTPUT_DIR_PATH}/{result_data_file_name}.parquet"
     with pq.ParquetWriter(result_path, schema=schema) as writer:
         for parquet_file in files:
-            # Gather each standalone blob into a single file
+            # Merge each standalone blob into a single file
             writer.write_table(pq.read_table(parquet_file, schema=schema))
-            # Remove the blob after, so it does not get gathered to subsequent data tables
+            # Remove the blob after, so it does not get merged to subsequent data tables
             parquet_file.unlink()
 
     print()
     logger.info(f"Result filesize: {os.path.getsize(result_path) / 2 ** 30} GB")
-    logger.info(f"Gather time: {time.time() - gather_time}")
+    logger.info(f"Merge time: {time.time() - merge_time}")
 
 
 def _gc_storage_client() -> google.cloud.storage.Client:
@@ -390,7 +390,7 @@ def clean_storage_bucket(storage_client: google.cloud.storage.Client, blob_name_
     :param storage_client: Instance of the Google Cloud Storage client
     :param blob_name_prefix: Name prefix of the blobs to delete
     """
-    logger.info(f"##### Deleting exported NEL data: ---{blob_name_prefix.upper()}---")
+    logger.info(f"##### Cleaning GSC storage: ---{blob_name_prefix.upper()}---")
 
     bucket = storage_client.get_bucket(DATA_EXPORT_BUCKET_NAME)
     blobs = bucket.list_blobs(prefix=blob_name_prefix)
@@ -407,8 +407,10 @@ def clean_temp_table(client: google.cloud.bigquery.Client, original_table_name: 
 
     :param client: Basic Google Cloud BigQuery API client with credentials and project ID
                    already provided
+    :param original_table_name: The table name that was queried to populate the temporary table
+                                - that is now to be cleaned (all rows deleted)
     """
-    logger.info(f"##### Deleting temporary NEL data table contents: ---{original_table_name.upper()}---")
+    logger.info(f"##### Cleaning temp table: ---{original_table_name.upper()}---")
 
     table_id = f"{GC_PROJECT_NAME}.{GC_BQ_DATASET_NAME}.{GC_BQ_TEMP_TABLE_NAME}"
     delete_table_contents_query = f"DELETE FROM `{table_id}` WHERE 1=1;"
@@ -475,6 +477,7 @@ def main():
 
             clean_temp_table(query_client, output_filename)
 
+    print()
     logger.info("All items downloaded. Exiting...")
 
 
