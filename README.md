@@ -1,6 +1,8 @@
 # IBP-NEL-Analysis-Scripts
 Scripts to run the NEL technology deployment analysis and produce it's resulting report
 
+Everything here is a lie. Do NOT trust this readme!
+TODO rewrite :)
 
 ## Usage
 

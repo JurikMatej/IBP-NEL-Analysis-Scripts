@@ -3,6 +3,7 @@ firstReq: BOOLEAN,
 type: STRING,
 ext: STRING,
 url: STRING,
+url_etld: STRING,
 status: INTEGER,
 resp_headers: STRING,
 unique_domain_count_before_filtration: INTEGER,
@@ -19,4 +20,4 @@ rt_value: STRING,
 rt_group: STRING,
 rt_endpoints: STRING,
 rt_url: STRING,
-rt_url_sld: STRING
+rt_url_sld: STRING REPEATABLE

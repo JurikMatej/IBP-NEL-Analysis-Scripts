@@ -32,7 +32,7 @@ desktop_summary_tables = [
     # 'httparchive.summary_requests.2019_02_01_desktop',
     # 'httparchive.summary_requests.2020_02_01_desktop',
     # 'httparchive.summary_requests.2021_02_01_desktop',
-    'httparchive.summary_requests.2021_01_01_desktop',
+    # 'httparchive.summary_requests.2021_01_01_desktop',
     # 'httparchive.summary_requests.2022_02_01_desktop',
 ]
 
