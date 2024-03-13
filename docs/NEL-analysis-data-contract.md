@@ -65,6 +65,13 @@ Abbreviation Legend:
 | rt_group                         | STRING  | 'default'  | Report-To field: `group`                                                                                                                                                                                                                                                                                                                                        |
 | rt_collectors                    | STRING  |     -      | Report-To, all field values: `endpoints.url[]`                                                                                                                                                                                                                                                                                                                  |
 
+#### Analysis files
+
+Every file MUST represent a specific month in a year for which the NEL data to be analyzed was obtained.
+The convention used in the `Download` phase -- `query_and_store.py` -- is naming these files as follows:
+`nel_data_YYYY_MM`. 
+All data files must be stored in the same directory.
+
 
 ### Semantics
 
