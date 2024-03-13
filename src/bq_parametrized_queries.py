@@ -170,7 +170,20 @@ WITH final_extracted_table AS (
     nel_include_subdomains,
     nel_report_to,
 
+    -- Count unique resources with NEL
+    -- (NEL that could also be incorrectly deployed, resources with correct NEL must be calculated from the result data)
     (SELECT COUNT(*) FROM nel_unique_resources_table) AS total_crawled_resources_with_nel,
+    
+    -- Count unique domains with NEL 
+    -- (NEL that could also be incorrectly deployed, domains with correct NEL must be calculated from the result data)  
+    (SELECT COUNT(*) FROM (
+      SELECT
+        MIN(requestid) _,  -- irrelevant - used only for aggregation of group by
+        REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain,
+      FROM nel_unique_resources_table
+      -- Grouping by the extracted url_domain leaves only the unique domains in this sub-select
+      GROUP BY url_domain
+    )) AS total_crawled_domains_with_nel,
     
     -- Non-json value
     -- OR bad formatting (no value, missing brackets)
@@ -182,7 +195,7 @@ WITH final_extracted_table AS (
 
     FROM nel_unique_resources_table
     /* END rt_extracted_values_table */
-  )
+    )
 
   /* START final_extracted_table */
   -- DESC: Extract Report-To specific fields from the rt_value
@@ -205,7 +218,8 @@ WITH final_extracted_table AS (
   nel_report_to,
 
   total_crawled_resources_with_nel,
-  
+  total_crawled_domains_with_nel,
+
   REGEXP_EXTRACT(rt_value, r".*group[\"\']\s*:\s*[\"\'](.+?)[\"\']") AS rt_group,
 
   REGEXP_EXTRACT_ALL(rt_value, r"url[\"\']\s*:\s*[\"\']http[s]?:[\\]*?[\/][\\]*?[\/]([^\/]+?)[\\]*?[\/\"]")
@@ -237,6 +251,7 @@ nel_include_subdomains,
 nel_report_to,
 
 total_crawled_resources_with_nel,
+total_crawled_domains_with_nel,
 
 rt_group,
 rt_collectors,
@@ -464,7 +479,20 @@ WITH final_extracted_table AS (
     nel_include_subdomains,
     nel_report_to,
 
+    -- Count unique resources with NEL
+    -- (NEL that could also be incorrectly deployed, resources with correct NEL must be calculated from the result data)
     (SELECT COUNT(*) FROM nel_unique_resources_table) AS total_crawled_resources_with_nel,
+    
+    -- Count unique domains with NEL 
+    -- (NEL that could also be incorrectly deployed, domains with correct NEL must be calculated from the result data)
+    (SELECT COUNT(*) FROM (
+      SELECT
+        MIN(requestid) _,  -- irrelevant - used only for aggregation of group by
+        REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain,
+      FROM nel_unique_resources_table
+      -- Grouping by the extracted url_domain leaves only the unique domains in this sub-select
+      GROUP BY url_domain
+    )) AS total_crawled_domains_with_nel,
     
     -- Non-json value
     -- OR bad formatting (no value, missing brackets)
@@ -476,10 +504,11 @@ WITH final_extracted_table AS (
 
     FROM nel_unique_resources_table
     /* END rt_extracted_values_table */
-  )
+    )
 
   /* START final_extracted_table */
   -- DESC: Extract Report-To specific fields from the rt_value
+  
   SELECT
   requestid,
   firstReq,
@@ -498,6 +527,7 @@ WITH final_extracted_table AS (
   nel_report_to,
 
   total_crawled_resources_with_nel,
+  total_crawled_domains_with_nel,
 
   REGEXP_EXTRACT(rt_value, r".*group[\"\']\s*:\s*[\"\'](.+?)[\"\']") AS rt_group,
 
@@ -530,6 +560,7 @@ nel_include_subdomains,
 nel_report_to,
 
 total_crawled_resources_with_nel,
+total_crawled_domains_with_nel,
 
 rt_group,
 rt_collectors,
@@ -785,7 +816,20 @@ WITH final_extracted_table AS (
     nel_include_subdomains,
     nel_report_to,
 
+    -- Count unique resources with NEL
+    -- (NEL that could also be incorrectly deployed, resources with correct NEL must be calculated from the result data)
     (SELECT COUNT(*) FROM nel_unique_resources_table) AS total_crawled_resources_with_nel,
+    
+    -- Count unique domains with NEL 
+    -- (NEL that could also be incorrectly deployed, domains with correct NEL must be calculated from the result data) 
+    (SELECT COUNT(*) FROM (
+      SELECT
+        MIN(requestid) _,  -- irrelevant - used only for aggregation of group by
+        REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain,
+      FROM nel_unique_resources_table
+      -- Grouping by the extracted url_domain leaves only the unique domains in this sub-select
+      GROUP BY url_domain
+    )) AS total_crawled_domains_with_nel,
     
     -- Non-json value
     -- OR bad formatting (no value, missing brackets)
@@ -797,10 +841,11 @@ WITH final_extracted_table AS (
 
     FROM nel_unique_resources_table
     /* END rt_extracted_values_table */
-  )
+    )
 
   /* START final_extracted_table */
   -- DESC: Extract Report-To specific fields from the rt_value
+  
   SELECT
   requestid,
   firstReq,
@@ -819,6 +864,7 @@ WITH final_extracted_table AS (
   nel_report_to,
 
   total_crawled_resources_with_nel,
+  total_crawled_domains_with_nel,
 
   REGEXP_EXTRACT(rt_value, r".*group[\"\']\s*:\s*[\"\'](.+?)[\"\']") AS rt_group,
 
@@ -850,6 +896,7 @@ nel_include_subdomains,
 nel_report_to,
 
 total_crawled_resources_with_nel,
+total_crawled_domains_with_nel,
 
 rt_group,
 rt_collectors,
@@ -1134,7 +1181,20 @@ WITH final_extracted_table AS (
     nel_include_subdomains,
     nel_report_to,
 
+    -- Count unique resources with NEL
+    -- (NEL that could also be incorrectly deployed, resources with correct NEL must be calculated from the result data)
     (SELECT COUNT(*) FROM nel_unique_resources_table) AS total_crawled_resources_with_nel,
+    
+    -- Count unique domains with NEL 
+    -- (NEL that could also be incorrectly deployed, domains with correct NEL must be calculated from the result data)  
+    (SELECT COUNT(*) FROM (
+      SELECT
+        MIN(requestid) _,  -- irrelevant - used only for aggregation of group by
+        REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain,
+      FROM nel_unique_resources_table
+      -- Grouping by the extracted url_domain leaves only the unique domains in this sub-select
+      GROUP BY url_domain
+    )) AS total_crawled_domains_with_nel,
 
     -- Non-json value
     -- OR bad formatting (no value, missing brackets)
@@ -1169,6 +1229,7 @@ WITH final_extracted_table AS (
   nel_report_to,
 
   total_crawled_resources_with_nel,
+  total_crawled_domains_with_nel,
 
   REGEXP_EXTRACT(rt_value, r".*group[\"\']\s*:\s*[\"\'](.+?)[\"\']") AS rt_group,
 
@@ -1200,6 +1261,7 @@ nel_include_subdomains,
 nel_report_to,
 
 total_crawled_resources_with_nel,
+total_crawled_domains_with_nel,
 
 rt_group,
 rt_collectors,

@@ -191,6 +191,7 @@ def _create_temp_table(client: bigquery.Client):
         bigquery.SchemaField("nel_include_subdomains", "STRING"),
         bigquery.SchemaField("nel_report_to", "STRING"),
         bigquery.SchemaField("total_crawled_resources_with_nel", "INTEGER"),
+        bigquery.SchemaField("total_crawled_domains_with_nel", "INTEGER"),
         bigquery.SchemaField("rt_group", "STRING"),
         bigquery.SchemaField("rt_collectors", "STRING", mode="REPEATED"),
     ]
