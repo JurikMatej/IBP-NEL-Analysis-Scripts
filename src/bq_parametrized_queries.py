@@ -48,11 +48,21 @@ WITH final_extracted_table AS (
             status,
             resp_headers,
     
-            -- Only one table in base_table - no filtration to unique URLs needed
-            -- Compute the numbers of resources and domains crawled
+            -- Only one table in base_table (already filtered to unique resources) - no filtration to unique URLs needed
+            -- Compute the numbers of unique resources
             (SELECT COUNT(*) FROM base_table) AS total_crawled_resources,
-            (SELECT COUNT(*) FROM base_table WHERE firstReq = true) AS total_crawled_domains,
+
+            -- Compute the number of unique domains among the unique resources crawled
+            (SELECT COUNT(*) FROM (
+              SELECT
+                MIN(requestid) _,  -- irrelevant - used only for aggregation of group by
+                REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain,
+              FROM base_table
+              -- Grouping by the extracted url_domain leaves only the unique domains in this sub-select
+              GROUP BY url_domain
+            )) AS total_crawled_domains,
     
+
             REGEXP_CONTAINS(resp_headers, r"(?:^|.*[\s,]+)(nel\s*[=]\s*)") AS contains_nel,
             -- Non-json value
             -- OR bad formatting (no value, missing brackets)
@@ -328,34 +338,25 @@ WITH final_extracted_table AS (
             -- Calculate the total number of unique resources from base_table (base_table contains concatenated tables) 
             (SELECT COUNT(*) 
               FROM (
-                  WITH numbered_occurrence_base_table_results AS (
-                      SELECT 
-                          *, 
-                          ROW_NUMBER() OVER (PARTITION BY url) unique_url_number
-                      FROM base_table
-                  )
-                
-                  SELECT * FROM numbered_occurrence_base_table_results
-                  WHERE unique_url_number = 1
+                  SELECT
+                    MIN(requestid) _,  -- irrelevant - used only for aggregation of group by
+                    url as resource,
+                  FROM base_table
+                  -- Grouping by the resource leaves only unique resources in this sub-select
+                  GROUP BY resource
               )                 
             ) 
             AS total_crawled_resources,
-          
+ 
             -- Calculate the total number of unique domains from base_table (base_table contains concatenated tables) 
             (SELECT COUNT(*) 
               FROM (
-                  WITH numbered_occurrence_base_table_results AS (
-                      SELECT 
-                          *, 
-                          ROW_NUMBER() OVER (PARTITION BY url) unique_url_number
-                      FROM base_table
-                      -- The magic happens here - take only those rows, that were the first requests for a resource
-                      -- 'firstReq = true' means that the resource crawled (URL) is the domain name itself
-                      WHERE base_table.firstReq = true
-                  )
-                
-                  SELECT * FROM numbered_occurrence_base_table_results
-                  WHERE unique_url_number = 1
+                SELECT
+                  MIN(requestid) _,  -- irrelevant - used only for aggregation of group by
+                  REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain,
+                FROM base_table
+                -- Grouping by the extracted url_domain leaves only the unique domains in this sub-select
+                GROUP BY url_domain  
               )                 
             ) 
             AS total_crawled_domains,
@@ -659,34 +660,25 @@ WITH final_extracted_table AS (
           -- Calculate the total number of unique resources from base_table (base_table contains concatenated tables) 
           (SELECT COUNT(*) 
             FROM (
-                WITH numbered_occurrence_base_table_results AS (
-                    SELECT 
-                        *, 
-                        ROW_NUMBER() OVER (PARTITION BY url) unique_url_number
-                    FROM base_table
-                )
-                
-                SELECT * FROM numbered_occurrence_base_table_results
-                WHERE unique_url_number = 1
+                SELECT
+                  MIN(requestid) _,  -- irrelevant - used only for aggregation of group by
+                  url as resource,
+                FROM base_table
+                -- Grouping by the resource leaves only unique resources in this sub-select
+                GROUP BY resource
             )                 
           ) 
           AS total_crawled_resources,
-          
+ 
           -- Calculate the total number of unique domains from base_table (base_table contains concatenated tables) 
           (SELECT COUNT(*) 
             FROM (
-                WITH numbered_occurrence_base_table_results AS (
-                    SELECT 
-                        *, 
-                        ROW_NUMBER() OVER (PARTITION BY url) unique_url_number
-                    FROM base_table
-                    -- The magic happens here - take only those rows, that were the first requests for a resource
-                    -- 'firstReq = true' means that the resource crawled (URL) is the domain name itself
-                    WHERE base_table.firstReq = true
-                )
-                
-                SELECT * FROM numbered_occurrence_base_table_results
-                WHERE unique_url_number = 1
+              SELECT
+                MIN(requestid) _,  -- irrelevant - used only for aggregation of group by
+                REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain,
+              FROM base_table
+              -- Grouping by the extracted url_domain leaves only the unique domains in this sub-select
+              GROUP BY url_domain  
             )                 
           ) 
           AS total_crawled_domains,
@@ -1017,34 +1009,25 @@ WITH final_extracted_table AS (
           -- Calculate the total number of unique resources from base_table (base_table contains concatenated tables) 
           (SELECT COUNT(*) 
             FROM (
-                WITH numbered_occurrence_base_table_results AS (
-                    SELECT 
-                        *, 
-                        ROW_NUMBER() OVER (PARTITION BY url) unique_url_number
-                    FROM base_table
-                )
-                
-                SELECT * FROM numbered_occurrence_base_table_results
-                WHERE unique_url_number = 1
+                SELECT
+                  MIN(requestid) _,  -- irrelevant - used only for aggregation of group by
+                  url as resource,
+                FROM base_table
+                -- Grouping by the resource leaves only unique resources in this sub-select
+                GROUP BY resource
             )                 
           ) 
           AS total_crawled_resources,
-          
+ 
           -- Calculate the total number of unique domains from base_table (base_table contains concatenated tables) 
           (SELECT COUNT(*) 
             FROM (
-                WITH numbered_occurrence_base_table_results AS (
-                    SELECT 
-                        *, 
-                        ROW_NUMBER() OVER (PARTITION BY url) unique_url_number
-                    FROM base_table
-                    -- The magic happens here - take only those rows, that were the first requests for a resource
-                    -- 'firstReq = true' means that the resource crawled (URL) is the domain name itself
-                    WHERE base_table.firstReq = true
-                )
-                
-                SELECT * FROM numbered_occurrence_base_table_results
-                WHERE unique_url_number = 1
+              SELECT
+                MIN(requestid) _,  -- irrelevant - used only for aggregation of group by
+                REGEXP_EXTRACT(url, r"http[s]?:[\/][\/]([^\/:]+)") AS url_domain,
+              FROM base_table
+              -- Grouping by the extracted url_domain leaves only the unique domains in this sub-select
+              GROUP BY url_domain  
             )                 
           ) 
           AS total_crawled_domains,
