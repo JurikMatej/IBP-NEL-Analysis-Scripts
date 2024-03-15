@@ -59,7 +59,12 @@ def main():
             "nel": [],
             "nel_percentage": []
         }),
-        "nel_collector_providers": pd.DataFrame()
+        "nel_collector_providers": pd.DataFrame({
+            "date": [],
+            "count": [],
+            "top_4_providers": [],
+            "share_%": [],
+        })
     }
 
     logger.info(f"Analyzing metrics for all files in ---{NEL_DATA_DIR_PATH}---")
@@ -78,12 +83,19 @@ def run_analysis(input_files: List[pathlib.Path], metrics_aggregates: dict[str, 
         month, year = input_file.stem.split("_")[::-1][:2]  # Reverse and take last 2 values
         month_data = pd.read_parquet(input_file)
 
+        # Metric 1 aggregation
         yearly_nel_deployment_next = nel_analysis.yearly_nel_deployment_next(month_data, year, month)
         metrics_aggregates['yearly_nel_deployment'] = pd.concat([metrics_aggregates['yearly_nel_deployment'], yearly_nel_deployment_next])
 
-        nel_analysis.update_nel_collector_providers(month_data, metrics_aggregates["nel_collector_providers"], year, month)
+        # Metric 2 aggregation
+        # TODO aggregate PER MONTH or PER YEAR
+        nel_collector_providers_next = nel_analysis.update_nel_collector_providers(month_data, year, month)
+        metrics_aggregates["nel_collector_providers"] = pd.concat([metrics_aggregates["nel_collector_providers"], nel_collector_providers_next])
 
+    # TODO produce the output into some kind of visual format (HTML)
+    # Metric 1 output
     nel_analysis.produce_output_yearly_nel_deployment(metrics_aggregates['yearly_nel_deployment'])
+    # Metric 2 output
     nel_analysis.produce_output_nel_collector_providers(metrics_aggregates['nel_collector_providers'])
 
 
