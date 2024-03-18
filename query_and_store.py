@@ -74,10 +74,11 @@ from google.cloud import storage
 from google.oauth2 import service_account
 
 from src.bq_parametrized_queries import \
-    QUERY_NEL_DATA_2_DESKTOP_2_MOBILE, \
-    QUERY_NEL_DATA_2_DESKTOP_1_MOBILE, \
-    QUERY_NEL_DATA_1_DESKTOP_1_MOBILE, \
-    QUERY_NEL_DATA_1_DESKTOP
+    QUERY_NEL_DATA_HEADER_1_DESKTOP, \
+    QUERY_NEL_DATA_HEADER_1_DESKTOP_1_MOBILE, \
+    QUERY_NEL_DATA_HEADER_2_DESKTOP_1_MOBILE, \
+    QUERY_NEL_DATA_HEADER_2_DESKTOP_2_MOBILE, \
+    QUERY_NEL_DATA_BODY
 
 
 # LOGGING
@@ -228,39 +229,31 @@ def select_query_by_table_structure(desktop_table_list: List[str], mobile_table_
     :return: Suitable query to fetch all tables provided in the parameters
     """
     if len(desktop_table_list) == 2 and len(mobile_table_list) == 2:
-        return QUERY_NEL_DATA_2_DESKTOP_2_MOBILE % (
-            desktop_table_list[1],
+        query_header = QUERY_NEL_DATA_HEADER_2_DESKTOP_2_MOBILE % (
             desktop_table_list[1],
             desktop_table_list[0],
-            desktop_table_list[0],
             mobile_table_list[1],
-            mobile_table_list[1],
-            mobile_table_list[0],
             mobile_table_list[0],
         )
     elif len(desktop_table_list) == 2 and len(mobile_table_list) == 1:
-        return QUERY_NEL_DATA_2_DESKTOP_1_MOBILE % (
-            desktop_table_list[1],
+        query_header = QUERY_NEL_DATA_HEADER_2_DESKTOP_1_MOBILE % (
             desktop_table_list[1],
             desktop_table_list[0],
-            desktop_table_list[0],
-            mobile_table_list[0],
             mobile_table_list[0],
         )
     elif len(desktop_table_list) == 1 and len(mobile_table_list) == 1:
-        return QUERY_NEL_DATA_1_DESKTOP_1_MOBILE % (
+        query_header = QUERY_NEL_DATA_HEADER_1_DESKTOP_1_MOBILE % (
             desktop_table_list[0],
-            desktop_table_list[0],
-            mobile_table_list[0],
             mobile_table_list[0],
         )
     elif len(desktop_table_list) == 1 and len(mobile_table_list) == 0:
-        return QUERY_NEL_DATA_1_DESKTOP % (
-            desktop_table_list[0],
+        query_header = QUERY_NEL_DATA_HEADER_1_DESKTOP % (
             desktop_table_list[0],
         )
     else:
         raise NotImplementedError("Other type of table fragmentation should not occur during the analyzed time period")
+
+    return query_header + QUERY_NEL_DATA_BODY
 
 
 def populate_temp_table_with_query_results(client: bigquery.Client, query_string: str, output_filename: str):
@@ -454,7 +447,7 @@ def main():
             # Skip this download entry if file with this entry's output filename already exists among downloaded files
             file_to_download_path = pathlib.Path(f"{DOWNLOAD_OUTPUT_DIR_PATH}/{output_filename}.parquet")
             if file_to_download_path.is_file():
-                logger.info(f"Table {output_filename} already among downloaded files")
+                logger.warning(f"Table {output_filename} already among downloaded files")
                 continue
 
             # Query & Store a download entry...
