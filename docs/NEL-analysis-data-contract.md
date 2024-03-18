@@ -1,7 +1,5 @@
 # NEL analysis data contract
 
-Note to Libor Polčák: Toto je spísané v angličtine, aby to bolo pre Vás použiteľné vo Vašom článku, ktorý bude z práce vychádzať.
-
 This document describes what data is expected by the `Analyze` part of the analysis lifecycle.
 Its purpose is to make it easier to write implementation for all metric-computing functions by specifically
 describing what the analysis data should look like (schema) and how it should be worked with (semantics).
@@ -95,27 +93,27 @@ All data files must be stored in the same directory.
 
 1. Should the metrics be computed on MONTHLY basis or YEARLY basis ? (resulting data only a table of year=2018->2024 OR a table of 2018/01, /02, /03 -> 2024/01) 
 
-   Answer: (it depends on a specific metric, but I need your opinion on what suits each the best)
+   Answer: **MONTHLY** (but the last month for a year can be used to normalize yearly)
 
 
-1. Where to use the eTLD and PSL (Public Suffix List) ? Convert `url` and `rt_collectors` data columns to eTLD+1 before working with them in `Analyze` stage ? 
+2. Where to use the eTLD and PSL (Public Suffix List) ? Convert `url` and `rt_collectors` data columns to eTLD+1 before working with them in `Analyze` stage ? 
 
-   Answer:
-
-
-2. The Public Suffix List is literally managed on GitHub via commits of eTLD additions. Can we use only one global PSL to parse `url` and `rt_collectors` into eTLD+1 ?
-
-   Answer:
+   Answer: eTLD+1 for `rt_collectors`, during the `Analyze` phase
 
 
-3. Is the `Query & Store` data good to go ? Can we start downloading all the data ? (This will consume all the BigQuery querying resources... and maybe even overcharge)
+3. The Public Suffix List is managed on GitHub via commits of eTLD additions. Can we use only the latest PSL ?
 
-   Answer: 
+   Answer: Merge the current with the one corresponding to crawl date (UNION = cat both | sort | uniq)
 
 
-4. Which metrics to implement ?
+4. Is the `Query & Store` data good to go ? Can we start downloading all the data ? (This will consume all the BigQuery querying resources... and maybe even overcharge)
 
-   Answer:
+   Answer: Test on the February data and consult
+
+
+5. Which metrics to implement ?
+
+   Answer: TODO
 
 
 #### Previous analysis (LPolcak, KJerabek) metrics (base)
@@ -126,14 +124,14 @@ All data files must be stored in the same directory.
      NEL)
    - Should we use eTLD+1 instead of base domains (column Domains, but also applies to NEL Domains)
 
-      ![img.png](img.png)
+      ![yearly_nel_deployment.png](yearly_nel_deployment.png)
 
 
 2. The count of NEL collector providers (OUT_1), the top four NEL collector providers for each analyzed year (OUT_2), and their share
    over the analyzed period (OUT_3)
     
    - Should we use eTLD+1 as provider domains instead of the used collector Second Level Domain ?
-      ![img_1.png](img_1.png)
+      ![nel_collector_providers.png](nel_collector_providers.png)
    
 
 
@@ -142,7 +140,7 @@ All data files must be stored in the same directory.
    
    - Again. Count by eTLD+1 ?   
 
-      ![img_2.png](img_2.png)
+      ![collectors_by_domain_employment.png](collectors_by_domain_employment.png)
 
 
 4. NEL configuration over time 
@@ -150,7 +148,7 @@ All data files must be stored in the same directory.
    into classes of used value intervals and compute yearly distribution into those classes
 
    - Example:
-       ![img_3.png](img_3.png)
+       ![nel_config_over_time_example.png](nel_config_over_time_example.png)
 
 
 #### New analysis metrics (xjurik12 proposals)
