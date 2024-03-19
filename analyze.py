@@ -2,27 +2,12 @@
 """
 author:         Matej Jurík <xjurik12@stud.fit.vutbr.cz>
 
-TODO
-    1. Use the preprocessed data obtained from the output of preprocess_stored.py
-    2. Create a set of functions computing the metrics agreed upon. These functions will create:
-        a. Statements - describe a fact about NEL deployment (% of NEL deployments)
-        b. Visualizations - additionally, if applicable, generate a graph displaying the metrics
-                            in an easily understandable way
-        c. Latex src text - if possible, also implement a latex file output capability that can than be leveraged
-                            to save time when re-running the analysis later (save the statement and the visualization
-                            as a latex file)
-    A.
-        The goal is to have the analysis located in one place (one runnable script) so that it is not so cumbersome to
-        reproduce results or generate more results at a later time
-        (in comparison to using the strategy to implement multiple jupyter notebooks)
-    B.
-        Keep in mind that this script should be doing as less as possible.
-        Ideally, only load the data once (but it's a LOT of data)
-        Ideally, compute all the metrics with it (implement the common structure well in the postprocess_stored.py)
-        Ideally, output should be easily usable for the thesis - copy and paste .tex, or upload image to be used
-            as a figure (this takes quite a lot of time and is not required by the analysis assignment)
+description:    Descriptive...
+
+purpose:        Purposeful...
 """
 
+import io
 import logging
 import sys
 import pathlib
@@ -31,6 +16,7 @@ from typing import List
 import pandas as pd
 
 import src.nel_analyis as nel_analysis
+from src import psl_utils
 
 # LOGGING
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
@@ -44,28 +30,39 @@ logger = logging.getLogger(__name__)
 
 # Download directory structure
 NEL_DATA_DIR_PATH = "httparchive_data_raw"
+PSL_DIR_PATH = "public_suffix_lists"
+
+# Pandas config
+pd.options.display.float_format = '{:.2f}'.format
+
+# Metrics
+METRIC_AGGREGATES = {
+    "yearly_nel_deployment": pd.DataFrame({
+        "date": [],
+        "domains": [],
+        "nel": [],
+        "nel_percentage": []
+    }),
+    "nel_collector_providers": pd.DataFrame({
+        "date": [],
+        "count": [],
+        "top_4_providers": [],
+        "share_%": [],
+    })
+}
 
 
 def main():
     nel_data_dir = pathlib.Path(NEL_DATA_DIR_PATH)
     nel_data_dir.mkdir(exist_ok=True, parents=True)
-
     input_files = list(nel_data_dir.glob("nel_data_*.parquet"))
 
-    metrics_aggregates = {
-        "yearly_nel_deployment": pd.DataFrame({
-            "date": [],
-            "domains": [],
-            "nel": [],
-            "nel_percentage": []
-        }),
-        "nel_collector_providers": pd.DataFrame({
-            "date": [],
-            "count": [],
-            "top_4_providers": [],
-            "share_%": [],
-        })
-    }
+    psl_dir = pathlib.Path(PSL_DIR_PATH)
+    psl_dir.mkdir(exist_ok=True, parents=True)
+    psl_files = list(psl_dir.glob("psl_*.dat"))
+    if pathlib.Path(f"{PSL_DIR_PATH}/psl_current.dat") not in psl_files:
+        logger.error(f"Please provide at least the current Public Suffix List ({PSL_DIR_PATH}/psl_current.dat).")
+        return
 
     logger.info(f"Analyzing metrics for all files in ---{NEL_DATA_DIR_PATH}---")
     print()
@@ -73,30 +70,51 @@ def main():
     if len(input_files) < 1:
         logger.error("No input files found")
     else:
-        run_analysis(input_files, metrics_aggregates)
+        run_analysis(input_files, psl_files, METRIC_AGGREGATES)
 
 
-def run_analysis(input_files: List[pathlib.Path], metrics_aggregates: dict[str, pd.DataFrame]):
+def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
+                 metric_aggregates: dict[str, pd.DataFrame]):
+
     for input_file in input_files:
         logger.info(f"---{input_file.name.upper()}---")
 
+        # Convention: nel_data_YYYY_MM.parquet
         month, year = input_file.stem.split("_")[::-1][:2]  # Reverse and take last 2 values
-        month_data = pd.read_parquet(input_file)
 
-        # Metric 1 aggregation
-        yearly_nel_deployment_next = nel_analysis.yearly_nel_deployment_next(month_data, year, month)
-        metrics_aggregates['yearly_nel_deployment'] = pd.concat([metrics_aggregates['yearly_nel_deployment'], yearly_nel_deployment_next])
+        psl = psl_utils.get_psl_for_specific_date(year, month, PSL_DIR_PATH, psl_files)
 
-        # Metric 2 aggregation
-        # TODO aggregate PER MONTH or PER YEAR
-        nel_collector_providers_next = nel_analysis.update_nel_collector_providers(month_data, year, month)
-        metrics_aggregates["nel_collector_providers"] = pd.concat([metrics_aggregates["nel_collector_providers"], nel_collector_providers_next])
+        # The used PSL library needs the PSL as file-like type to read from
+        # So to avoid saving temporary files to disk, StringIO() is used
+        with io.StringIO() as psl_IO:
+            psl_IO.write(psl)
 
-    # TODO produce the output into some kind of visual format (HTML)
+            month_data = pd.read_parquet(input_file)
+
+            # Metric 1 aggregation
+            yearly_nel_deployment_next = nel_analysis.yearly_nel_deployment_next(month_data, year, month)
+            metric_aggregates['yearly_nel_deployment'] = pd.concat(
+                [metric_aggregates['yearly_nel_deployment'], yearly_nel_deployment_next])
+
+            # Metric 2 aggregation
+            nel_collector_providers_next = nel_analysis.update_nel_collector_providers(
+                month_data, year, month, reset_psl_file(psl_IO))
+            metric_aggregates["nel_collector_providers"] = pd.concat(
+                [metric_aggregates["nel_collector_providers"], nel_collector_providers_next])
+
+        print()
+
     # Metric 1 output
-    nel_analysis.produce_output_yearly_nel_deployment(metrics_aggregates['yearly_nel_deployment'])
+    nel_analysis.produce_output_yearly_nel_deployment(metric_aggregates['yearly_nel_deployment'])
     # Metric 2 output
-    nel_analysis.produce_output_nel_collector_providers(metrics_aggregates['nel_collector_providers'])
+    nel_analysis.produce_output_nel_collector_providers(metric_aggregates['nel_collector_providers'])
+
+    logger.info("Done. Exiting...")
+
+
+def reset_psl_file(psl_file: io.StringIO) -> io.StringIO:
+    psl_file.seek(0)
+    return psl_file
 
 
 if __name__ == "__main__":
