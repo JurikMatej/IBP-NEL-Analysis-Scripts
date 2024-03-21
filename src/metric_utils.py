@@ -5,7 +5,7 @@ PATTERN_DOMAIN_FROM_URL = r"http[s]?:[\/][\/]([^\/:]+)"
 
 
 def calculate_total_nel_domains(url_column: pd.Series) -> int:
-    return len(url_column.apply(_extract_domain_from_url)
+    return len(url_column.map(_extract_domain_from_url)
                .dropna()
                .drop_duplicates()
                .reset_index(drop=True))
@@ -25,4 +25,10 @@ def get_rt_collectors_for_unique_domains_with_nel(nel_resources_with_rt_collecto
 
 
 def _extract_domain_from_url(url):
+    """
+    Parse and extract the domain name from an url
+
+    :param url: An url
+    :return: Extracted domain name or None if url parameter's value does not match an url pattern
+    """
     return re.search(PATTERN_DOMAIN_FROM_URL, url).group(1) if re.match(PATTERN_DOMAIN_FROM_URL, url) else None

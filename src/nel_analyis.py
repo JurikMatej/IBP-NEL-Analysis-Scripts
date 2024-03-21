@@ -37,6 +37,8 @@ def update_nel_collector_providers(month_data: pd.DataFrame, year: str, month: s
     rt_collectors_occurrences = data_by_nel_domains['rt_collectors'].map(
         lambda collector_list: collector_list[0] if len(collector_list) > 0 else None)
 
+    rt_collectors_occurrences.dropna(inplace=True)
+
     rt_registrable_domain_collector_occurrences = rt_collectors_occurrences.map(
         lambda domain: psl_utils.get_sld_from_custom_psl(domain, used_psl))
 

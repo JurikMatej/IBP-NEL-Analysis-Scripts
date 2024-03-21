@@ -76,7 +76,7 @@ def main():
 def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
                  metric_aggregates: dict[str, pd.DataFrame]):
 
-    for input_file in input_files:
+    for input_file in input_files:  # UTILIZE THREAD POOL EXECUTOR ?
         logger.info(f"---{input_file.name.upper()}---")
 
         # Convention: nel_data_YYYY_MM.parquet
