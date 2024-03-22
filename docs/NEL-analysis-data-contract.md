@@ -44,7 +44,7 @@ Abbreviation Legend:
 | rt      | Report To             |
 
 
-**_UPDATE:_** 
+[//]: # (TODO make sure the schema is FINAL - see the agreed upon metrics to determine if any more computation needs to be done ONLINE)
 
 | Key                                  |  Type   | Default To | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 |:-------------------------------------|:-------:|:----------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -70,6 +70,7 @@ Abbreviation Legend:
 | rt_group                             | STRING  | 'default'  | Report-To field: `group`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | rt_collectors                        | STRING  |     -      | Report-To, all field values: `endpoints.url[]`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
+
 #### Analysis files
 
 Every file MUST represent a specific month in a year for which the NEL data to be analyzed was obtained.
@@ -80,17 +81,26 @@ All data files must be stored in the same directory.
 
 ### Semantics
 
-1. **_UPDATE:_** Each data row represents a unique domain name (see the `url_domain` column). There are usually many more 
+1. Each data row represents a unique domain name (see the `url_domain` column). There are usually many more 
    resources available for each domain in the HTTP Archive data, but because distributed computing algorithm is necessary 
-   to compute so much data in a timely manner, the data for the `Analysis` phase is 
+   to compute so much data **_in a timely manner_**, the data for the `Analysis` phase is 
    sampled -- `n=1` -- where `n` represents the number of resources to download per a unique domain.
    To state the problem encountered, reading a 01/02/2021 (not even halfway through the analysis) 
    month data takes around 251 secs (`pandas.read_parquet(month_data)`). The metric computing functions by themselves 
-   each take even more time to finish computing (same **_MONTH_** data: `yearly_nel_deployment` took 328 secs; `nel_collector_providers` took 758 secs). 
-    
-   
+   each take even more time to finish computing 
+   (with the same **_MONTH_** data: `yearly_nel_deployment` took 328 secs; `nel_collector_providers` took 758 secs). 
 
-2. When counting valid NEL deployments - every requests-response pair in the data must be using protocol HTTPS. 
+
+2. However, no change is to be made to the `Query & Store` script. The raw downloaded data is still resource-normalized.
+   To comply with the point above, a `Postprocess` phase is to be introduced to create a new, stripped dataset, that
+   is to be url_domain-normalized (`n=1` for `n` representing resource count per unique domain).
+   This means that the original, full size data is kept, but the `Analysis` will use the resource stripped/sampled data
+   to make this project finish-able in due time.
+   
+   [//]: # (TODO update 1. & 2. one more time after having the analysis done)
+
+
+3. When counting valid NEL deployments - every requests-response pair in the data must be using protocol HTTPS. 
    NEL only works over HTTPS, not HTTP. 
    IMPORTANT NOTE: This is not accounted for in the analysis. For now, even HTTP responses with NEL are counted.
 
@@ -101,7 +111,7 @@ All data files must be stored in the same directory.
 
 #### NOTES:
 
-* eTLD inclusion (merging historic, searching, parsing eTLD+1) implemented - publicsuffix2 library used (license OK)
+* eTLD inclusion (merging historic, searching, parsing eTLD+1) implemented - publicsuffix2 library used (license OK) - TODO REVISE on the comments
 * analysis tested on the first 2 metrics - got better results
 * profiled the analysis - it takes TOO LONG
 * came up with what final steps we could take to finish this Bachelor Thesis 
@@ -125,37 +135,53 @@ All data files must be stored in the same directory.
 
       **_IMPORTANT NOTE:_** As in the Kamil Jerabek's script (python notebook for collector provider metric),
       I only use the primary collector provider = `rt_collectors[0]` to count, parse eTLD+1 and sort providers.
+
+      **_NOTE: use this graph with logarithmic Y to display this metric over all months_**  
       
-      -------------------------
-      -------------------------
+      <img alt="graph-idea-01.png" height="500" width="750" src="graph-idea-01.png"/>
       
-      ![nel_collector_providers.png](nel_collector_providers.png)
-      ![nel_collector_providers_new.png](nel_collector_providers_new.png)
+      **_NOTE: or this one to avoid logarithmic Y_**  
+      
+      <img alt="graph-idea-02.png" height="550" width="750" src="graph-idea-02.png"/>
+
+      **_NOTE: or this one for different use case_**
+
+      <img alt="graph-idea-03.png" height="400" width="484" src="graph-idea-03.png"/>
    
-      - PER YEAR DEBUG RESULTS:
-        1. NEL domains for 2019 = 370; 0 new collectors discovered
-        
-           ![nel_collector_providers_2019.png](nel_collector_providers_2019.png)
-        
-           ...and the rest (share < 1)
-        
-        -------------------------
-        -------------------------
-        
-        2. NEL domains for 2019 = 109 604; 5 new collectors discovered
-           
-           ![nel_collector_providers_2020.png](nel_collector_providers_2020.png)
-           
-           ...and the rest (share < 16)
-        
-        -------------------------
-        -------------------------
-        
-        3. NEL domains for 2019 = 1 008 105; 8 new collectors discovered
-           
-           ![nel_collector_providers_2020.png](nel_collector_providers_2021.png)
-           
-           ...and the rest (share < 54)
+      **_NOTE: or this one for different use case_**
+ 
+      <img alt="graph-idea-04.png" height="400" width="750" src="graph-idea-04.png"/>
+
+     -------------------------
+     -------------------------
+  
+     ![nel_collector_providers.png](nel_collector_providers.png)
+     ![nel_collector_providers_new.png](nel_collector_providers_new.png)
+
+     - PER YEAR DEBUG RESULTS:
+       1. NEL domains for 2019 = 370; 0 new collectors discovered
+    
+          ![nel_collector_providers_2019.png](nel_collector_providers_2019.png)
+    
+          ...and the rest (share < 1)
+    
+       -------------------------
+       -------------------------
+    
+       2. NEL domains for 2019 = 109 604; 5 new collectors discovered
+       
+          ![nel_collector_providers_2020.png](nel_collector_providers_2020.png)
+       
+          ...and the rest (share < 16)
+    
+       -------------------------
+       -------------------------
+    
+       3. NEL domains for 2019 = 1 008 105; 8 new collectors discovered
+       
+          ![nel_collector_providers_2020.png](nel_collector_providers_2021.png)
+       
+          ...and the rest (share < 54)
 
 
 3. The number of NEL collector providers that are employed by a given number of domains (Number of collectors employed
@@ -185,32 +211,45 @@ All data files must be stored in the same directory.
        - See points 1., 2. & 3. of the previous section
        - Maybe add a graph displaying the increase in NEL deployment over the whole period (the mentioned point 1.)
 
-    3. The most used collector providers over the whole period (2018-2024)
-       - Not just for each month, but for the whole period of time
-
 	4. The most used collector providers over the whole period (2018-2024) - deployment begin and remove points in time
        - Lifetime of the collector providers. Who was just experimenting & who really means business
+       - 1.: Each provider has a mark in the graph, 
+         - x-axis = number of months/occurrences of the provider availability
+         - y-axis = max reporting domains
+       - 2.: 
+         - x-axis = time (month)
+         - y-axis = bins of number of reporting domains
+         - plot point (heat) content: count of collectors handling the reports
 
-    5. Ratio of NEL-monitored resources to non-NEL-monitored resources
+    5. Additional interesting collector metrics:
+        - len(rt_collectors) as a metric      
+        - top N primary collectors     
+        - top N secondary collectors
+        - top N tertiary collectors (probably stop at secondary collectors)     
+        - top N TOTAL (all occurrences, any priority) collectors
+
+    6. Ratio of NEL-monitored resources to non-NEL-monitored resources
        - url_domain_hosted_resources_with_nel / url_domain_hosted_resources * 100 (for each domain; worth precalculating in BigQuery)
+       - Variability/variety of the NEL configuration on the domain (TODO domains/resources problem)
+       - Visualize probably via a heat graph
 
-    6. Configuration metrics
+    7. Configuration metrics
           a. By separate NEL fields (See point 4. of the previous section)
-          b. Most used config over the whole period of time (2018-2024)
     
-    7. Overview of the monitored resource types (html, js, img, video) 
+    8. Overview of the monitored resource types (html, js, img, video)
 
-	8. Popular domain metrics (case study for the popular sites from TRANCO - interesting domains analysis)
+	9. Popular domain metrics (case study for the popular sites from TRANCO - interesting domains analysis)
        a. NEL Usage (as in point 1. of the previous section)
        b. Employed Collectors (as in point 2. & 3. of the previous section)
        c. Most used config (as in point 4. of the previous section)
        d. Deployment changes in time (start, stop - as in point 4 of THIS section)
 
        This section is to be complemented with the Selenium real-time crawling script: 
+         - Compare results of point 7. (this section) 
          - Compare results of point 8. (this) for the latest available month (probably 2024-02)
            with the results of a real-time Selenium crawl
 
-	9. Eligible domains to crawl for NEL in Real-Time
+	10. Eligible domains to crawl for NEL in Real-Time
        a. Domains having interesting ratio of NEL-monitored resources to non-NEL-monitored resources (high url_domain_hosted_resources_with_nel)
        b. Domains from the TRANCO list
 
