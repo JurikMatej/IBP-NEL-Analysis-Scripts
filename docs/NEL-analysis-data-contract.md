@@ -56,7 +56,7 @@ Abbreviation Legend:
 | url_domain                           | STRING  |     -      | The domain name parsed from HTTP Archive crawl's requested URL                                                                                                                                                                                                                                                                                                  |
 | url_domain_hosted_resources          | INTEGER |     -      | The number of resources on that specific `url_domain`                                                                                                                                                                                                                                                                                                           |
 | url_domain_hosted_resources_with_nel | INTEGER |     -      | The number of resources that were NEL-monitored on that specific `url_domain` (can be used to mark domains worth crawling using Selenium)                                                                                                                                                                                                                       |
-| url_domain_monitored_resources_ratio |  FLOAT  |     -      | Ratio of NEL-monitored resources to non-NEL-monitored resources hosted on that specific `url_domain`                                                                                                                                                                                                                                                             |
+| url_domain_monitored_resources_ratio |  FLOAT  |     -      | Ratio of NEL-monitored resources to non-NEL-monitored resources hosted on that specific `url_domain`                                                                                                                                                                                                                                                            |
 | status                               | INTEGER |     -      | HTTP Archive crawl's response HTTP status                                                                                                                                                                                                                                                                                                                       |
 | total_crawled_resources              | INTEGER |     -      | Total count of HTTP Archive crawl's request & response pairs for resources (counts domain, subdomain and specific page crawls for every crawled domain). This field must be contained within the HTTP Archive query result, because it cannot be computed offline from only the NEL-containing resources (cannot be computed offline)                           |
 | total_crawled_domains                | INTEGER |     -      | Total count of HTTP Archive crawl's request & response pairs for base domain names (counts only unique domains). Likewise, as for `total_crawled_resources`, this field cannot be computed from only the NEL-containing domains (cannot be computed offline)                                                                                                    |
@@ -106,17 +106,49 @@ All data files must be stored in the same directory.
       ![yearly_nel_deployment.png](yearly_nel_deployment.png)
       ![yearly_nel_deployment_new.png](yearly_nel_deployment_new.png)
 
+      Better results achieved - new NEL domains discovered:
+      - 2019 = 15 new NEL domains
+      - 2020 = 121 new NEL domains
+      - 2021 = 3 826 new NEL domains
+      - ... the rest not tested to save computing budget (new ideas for SQL enhancements came up)
+
 
 2. The count of NEL collector providers, the top four NEL collector providers for each analyzed year, and their share
    over the analyzed period
 
+      **_IMPORTANT NOTE:_** As in the Kamil Jerabek's script (python notebook for collector provider metric),
+      I only use the primary collector provider = `rt_collectors[0]` to count, parse eTLD+1 and sort providers.
+      
+      -------------------------
+      -------------------------
+      
       ![nel_collector_providers.png](nel_collector_providers.png)
       ![nel_collector_providers_new.png](nel_collector_providers_new.png)
    
       - PER YEAR DEBUG RESULTS:
-        1. ![nel_collector_providers_2019.png](nel_collector_providers_2019.png)
-        2. ![nel_collector_providers_2020.png](nel_collector_providers_2020.png)
-        3. ![nel_collector_providers_2020.png](nel_collector_providers_2021.png)
+        1. NEL domains for 2019 = 370; 0 new collectors discovered
+        
+           ![nel_collector_providers_2019.png](nel_collector_providers_2019.png)
+        
+           ...and the rest (share < 1)
+        
+        -------------------------
+        -------------------------
+        
+        2. NEL domains for 2019 = 109 604; 5 new collectors discovered
+           
+           ![nel_collector_providers_2020.png](nel_collector_providers_2020.png)
+           
+           ...and the rest (share < 16)
+        
+        -------------------------
+        -------------------------
+        
+        3. NEL domains for 2019 = 1 008 105; 8 new collectors discovered
+           
+           ![nel_collector_providers_2020.png](nel_collector_providers_2021.png)
+           
+           ...and the rest (share < 54)
 
 
 3. The number of NEL collector providers that are employed by a given number of domains (Number of collectors employed
