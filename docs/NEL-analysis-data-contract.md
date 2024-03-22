@@ -44,26 +44,31 @@ Abbreviation Legend:
 | rt      | Report To             |
 
 
-| Key                              |  Type   | Default To | Description                                                                                                                                                                                                                                                                                                                                                     |
-|:---------------------------------|:-------:|:----------:|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| requestId                        | INTEGER |     -      | Primary key - The particular HTTP Archive crawl request's ID                                                                                                                                                                                                                                                                                                    |
-| firstReq                         |  BOOL   |     -      | This column's meaning is vague. Currently, it is not used. It was, however, used in the previous NEL analysis. That is the reason it is kept here.                                                                                                                                                                                                              |
-| type                             | STRING  |     -      | Requested resource type (html, script, video, font)                                                                                                                                                                                                                                                                                                             |
-| ext                              | STRING  |     -      | Requested resource file extension without the leading dot (html, json, mp4, woff2)                                                                                                                                                                                                                                                                              |
-| url                              | STRING  |     -      | HTTP Archive crawl's requested URL (https://www.google.com/, https://bucket-name.s3.amazonaws.com)                                                                                                                                                                                                                                                              |
-| url_etld                         | STRING  |     -      | HTTP Archive crawl's requested URL's effective Top Level Domain (com, s3.amazonaws.com) - This field is possibly OPTIONAL, currently only used because of the availability of Public Suffix List inside of the BigQuery SQL as a function taking url and returning eTLD.                                                                                        |
-| status                           | INTEGER |     -      | HTTP Archive crawl's response HTTP status                                                                                                                                                                                                                                                                                                                       |
-| total_crawled_resources          | INTEGER |     -      | Total count of HTTP Archive crawl's request & response pairs for resources (counts domain, subdomain and specific page crawls for every crawled domain). This field must be contained within the HTTP Archive query result, because it cannot be computed offline from only the NEL-containing resources (cannot be computed offline)                           |
-| total_crawled_domains            | INTEGER |     -      | Total count of HTTP Archive crawl's request & response pairs for base domain names (counts only unique domains). Likewise, as for `total_crawled_resources`, this field cannot be computed from only the NEL-containing domains (cannot be computed offline)                                                                                                    |
-| nel_max_age                      | STRING  |     -      | NEL field: `max_age`                                                                                                                                                                                                                                                                                                                                            |
-| nel_failure_fraction             | STRING  |   '1.0'    | NEL field: `failure_fraction`                                                                                                                                                                                                                                                                                                                                   |
-| nel_success_fraction             | STRING  |   '0.0'    | NEL field: `success_fraction`                                                                                                                                                                                                                                                                                                                                   |
-| nel_include_subdomains           | STRING  |  'false'   | NEL field: `include_subdomains`                                                                                                                                                                                                                                                                                                                                 |
-| nel_report_to                    | STRING  | 'default'  | NEL field: `report_to`                                                                                                                                                                                                                                                                                                                                          |
-| total_crawled_resources_with_nel | INTEGER |     -      | Total count of unique resource requests to which the response returned with NEL header (counts every unique resource responses with NEL occurrence in monthly data, but the returned data itself contains only those unique resource responses that also contained Report-To headers with NEL.report-to header value matching the Report-To.group header value) |
-| total_crawled_domains_with_nel   | INTEGER |     -      | Total count of unique domains that answered resource requests with responses containing NEL header (counts every unique domain responses with NEL occurrence in monthly data)                                                                                                                                                                                   |
-| rt_group                         | STRING  | 'default'  | Report-To field: `group`                                                                                                                                                                                                                                                                                                                                        |
-| rt_collectors                    | STRING  |     -      | Report-To, all field values: `endpoints.url[]`                                                                                                                                                                                                                                                                                                                  |
+**_UPDATE:_** 
+
+| Key                                  |  Type   | Default To | Description                                                                                                                                                                                                                                                                                                                                                     |
+|:-------------------------------------|:-------:|:----------:|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| requestId                            | INTEGER |     -      | Primary key - The particular HTTP Archive crawl request's ID                                                                                                                                                                                                                                                                                                    |
+| firstReq                             |  BOOL   |     -      | This column's meaning is vague. Currently, it is not used. It was, however, used in the previous NEL analysis. That is the reason it is kept here.                                                                                                                                                                                                              |
+| type                                 | STRING  |     -      | Requested resource type (html, script, video, font)                                                                                                                                                                                                                                                                                                             |
+| ext                                  | STRING  |     -      | Requested resource file extension without the leading dot (html, json, mp4, woff2)                                                                                                                                                                                                                                                                              |
+| url                                  | STRING  |     -      | HTTP Archive crawl's requested URL (https://www.google.com/, https://bucket-name.s3.amazonaws.com)                                                                                                                                                                                                                                                              |
+| url_domain                           | STRING  |     -      | The domain name parsed from HTTP Archive crawl's requested URL                                                                                                                                                                                                                                                                                                  |
+| url_domain_hosted_resources          | INTEGER |     -      | The number of resources on that specific `url_domain`                                                                                                                                                                                                                                                                                                           |
+| url_domain_hosted_resources_with_nel | INTEGER |     -      | The number of resources that were NEL-monitored on that specific `url_domain` (can be used to mark domains worth crawling using Selenium)                                                                                                                                                                                                                       |
+| url_domain_monitored_resources_ratio |  FLOAT  |     -      | Ratio of NEL-monitored resources to non-NEL-monitored resources hosted on that specific `url_domain`                                                                                                                                                                                                                                                             |
+| status                               | INTEGER |     -      | HTTP Archive crawl's response HTTP status                                                                                                                                                                                                                                                                                                                       |
+| total_crawled_resources              | INTEGER |     -      | Total count of HTTP Archive crawl's request & response pairs for resources (counts domain, subdomain and specific page crawls for every crawled domain). This field must be contained within the HTTP Archive query result, because it cannot be computed offline from only the NEL-containing resources (cannot be computed offline)                           |
+| total_crawled_domains                | INTEGER |     -      | Total count of HTTP Archive crawl's request & response pairs for base domain names (counts only unique domains). Likewise, as for `total_crawled_resources`, this field cannot be computed from only the NEL-containing domains (cannot be computed offline)                                                                                                    |
+| total_crawled_resources_with_nel     | INTEGER |     -      | Total count of unique resource requests to which the response returned with NEL header (counts every unique resource responses with NEL occurrence in monthly data, but the returned data itself contains only those unique resource responses that also contained Report-To headers with NEL.report-to header value matching the Report-To.group header value) |
+| total_crawled_domains_with_nel       | INTEGER |     -      | Total count of unique domains that answered resource requests with responses containing NEL header (counts every unique domain responses with NEL occurrence in monthly data)                                                                                                                                                                                   |
+| nel_max_age                          | STRING  |     -      | NEL field: `max_age`                                                                                                                                                                                                                                                                                                                                            |
+| nel_failure_fraction                 | STRING  |   '1.0'    | NEL field: `failure_fraction`                                                                                                                                                                                                                                                                                                                                   |
+| nel_success_fraction                 | STRING  |   '0.0'    | NEL field: `success_fraction`                                                                                                                                                                                                                                                                                                                                   |
+| nel_include_subdomains               | STRING  |  'false'   | NEL field: `include_subdomains`                                                                                                                                                                                                                                                                                                                                 |
+| nel_report_to                        | STRING  | 'default'  | NEL field: `report_to`                                                                                                                                                                                                                                                                                                                                          |
+| rt_group                             | STRING  | 'default'  | Report-To field: `group`                                                                                                                                                                                                                                                                                                                                        |
+| rt_collectors                        | STRING  |     -      | Report-To, all field values: `endpoints.url[]`                                                                                                                                                                                                                                                                                                                  |
 
 #### Analysis files
 
@@ -75,70 +80,50 @@ All data files must be stored in the same directory.
 
 ### Semantics
 
-1. When using the rows to calculate metrics for NEL deployment - every row in the data represents a request-response pair. 
-   The requested (crawled) endpoint (`url` column) is not always the domain itself.
-   A row can be a request to a unique DOMAIN, SUB-DOMAIN of that DOMAIN or a SUB-PAGE of that domain
-   (an example could be a row with `url = https://domain/sub/page/path?query=string`).
-   Each row in the nel data therefore **DOES NOT represent a unique domain**.
+1. **_UPDATE:_** Each data row represents a unique domain name (see the `url_domain` column). There are usually many more 
+   resources available for each domain in the HTTP Archive data, but because distributed computing algorithm is necessary 
+   to compute so much data in a timely manner, the data for the `Analysis` phase is 
+   sampled -- `n=1` -- where `n` represents the number of resources to download per a unique domain.
+   To state the problem encountered, reading a 01/02/2021 (not even halfway through the analysis) 
+   month data takes around 251 secs (`pandas.read_parquet(month_data)`). The metric computing functions by themselves 
+   each take even more time to finish computing (same **_MONTH_** data: `yearly_nel_deployment` took 328 secs; `nel_collector_providers` took 758 secs). 
+    
+   
 
 2. When counting valid NEL deployments - every requests-response pair in the data must be using protocol HTTPS. 
-   NEL only works over HTTPS, not HTTP.
+   NEL only works over HTTPS, not HTTP. 
+   IMPORTANT NOTE: This is not accounted for in the analysis. For now, even HTTP responses with NEL are counted.
 
 [//]: # (TODO Is there anything else to point out and handle ?)
 
 
-### Custom - Metrics
-
-#### Questions to be answered - TODO(Libor Polčák)
-
-1. Should the metrics be computed on MONTHLY basis or YEARLY basis ? (resulting data only a table of year=2018->2024 OR a table of 2018/01, /02, /03 -> 2024/01) 
-
-   Answer: **MONTHLY** (but the last month for a year can be used to normalize yearly)
-
-
-2. Where to use the eTLD and PSL (Public Suffix List) ? Convert `url` and `rt_collectors` data columns to eTLD+1 before working with them in `Analyze` stage ? 
-
-   Answer: eTLD+1 for `rt_collectors`, during the `Analyze` phase
-
-
-3. The Public Suffix List is managed on GitHub via commits of eTLD additions. Can we use only the latest PSL ?
-
-   Answer: Merge the current with the one corresponding to crawl date (UNION = cat both | sort | uniq)
-
-
-4. Is the `Query & Store` data good to go ? Can we start downloading all the data ? (This will consume all the BigQuery querying resources... and maybe even overcharge)
-
-   Answer: Test on the February data and consult
-
-
-5. Which metrics to implement ?
-
-   Answer: TODO
-
+### Metrics
 
 #### Previous analysis (LPolcak, KJerabek) metrics (base)
 
 1. Unique domains queried within each year and those responding with valid NEL headers
 
-   - RESULTS: Year; Total Domains Count; NEL Count; NEL Percentage (% out of all domains that returned response containing
-     NEL)
-   - Should we use eTLD+1 instead of base domains (column Domains, but also applies to NEL Domains)
-
       ![yearly_nel_deployment.png](yearly_nel_deployment.png)
+      ![yearly_nel_deployment_new.png](yearly_nel_deployment_new.png)
 
 
-2. The count of NEL collector providers (OUT_1), the top four NEL collector providers for each analyzed year (OUT_2), and their share
-   over the analyzed period (OUT_3)
-    
-   - Should we use eTLD+1 as provider domains instead of the used collector Second Level Domain ?
+2. The count of NEL collector providers, the top four NEL collector providers for each analyzed year, and their share
+   over the analyzed period
+
       ![nel_collector_providers.png](nel_collector_providers.png)
+      ![nel_collector_providers_new.png](nel_collector_providers_new.png)
    
+      - PER YEAR DEBUG RESULTS:
+        1. ![nel_collector_providers_2019.png](nel_collector_providers_2019.png)
+        2. ![nel_collector_providers_2020.png](nel_collector_providers_2020.png)
+        3. ![nel_collector_providers_2020.png](nel_collector_providers_2021.png)
 
 
 3. The number of NEL collector providers that are employed by a given number of domains (Number of collectors employed
    by 1, 2, 3-10, 11-100, 101-1K and more domains).
    
-   - Again. Count by eTLD+1 ?   
+   - TODO: Not implemented yet 
+   - TODO: Count the collectors by eTLD+1 ?   
 
       ![collectors_by_domain_employment.png](collectors_by_domain_employment.png)
 
@@ -147,43 +132,52 @@ All data files must be stored in the same directory.
    - Divide the 4 NEL configuration fields (max_age, succ_rate, fail_rate, incl_subd) 
    into classes of used value intervals and compute yearly distribution into those classes
 
+   - TODO: Not implemented yet
    - Example:
        ![nel_config_over_time_example.png](nel_config_over_time_example.png)
 
 
-#### New analysis metrics (xjurik12 proposals)
+#### New analysis metrics (xjurik12 proposals, ordered as they could be presented)
 
-1. The beginning of NEL
-   - Who used NEL the first and when
+    1. The first available Collector providers
+       - Mention worthy. Just textual output
 
-2. The type of resource NEL is used for the most
-    1. Take a month from the nel data
-    2. Extract all TYPE values and sort them by count of their occurrence (as a NEL monitored resource type)
-    3. Calculate the ratio of the total use for each TYPE
-    4. Extract EXT values for the top N (top 10) used TYPEs (group by type) and find the most used EXT for every TYPE
-    5. Calculate the ratio of the total use of the most used EXT for a specific TYPE
+	2. The 3 base metrics
+       - See points 1., 2. & 3. of the previous section
+       - Maybe add a graph displaying the increase in NEL deployment over the whole period (the mentioned point 1.)
 
+    3. The most used collector providers over the whole period (2018-2024)
+       - Not just for each month, but for the whole period of time
 
-3. Famous / Popular companies using NEL
-    - Use a list of popular domains to filter domains like these out
-    - Or observe manually
+	4. The most used collector providers over the whole period (2018-2024) - deployment begin and remove points in time
+       - Lifetime of the collector providers. Who was just experimenting & who really means business
 
+    5. Ratio of NEL-monitored resources to non-NEL-monitored resources
+       - url_domain_hosted_resources_with_nel / url_domain_hosted_resources * 100 (for each domain; worth precalculating in BigQuery)
 
-4. Usage of NEL over time
-    - In the aggregated set of NEL usage metric data, look for trends to describe (company started using, stopped, then
-      after 2 years started again)
+    6. Configuration metrics
+          a. By separate NEL fields (See point 4. of the previous section)
+          b. Most used config over the whole period of time (2018-2024)
+    
+    7. Overview of the monitored resource types (html, js, img, video) 
 
+	8. Popular domain metrics (case study for the popular sites from TRANCO - interesting domains analysis)
+       a. NEL Usage (as in point 1. of the previous section)
+       b. Employed Collectors (as in point 2. & 3. of the previous section)
+       c. Most used config (as in point 4. of the previous section)
+       d. Deployment changes in time (start, stop - as in point 4 of THIS section)
 
-5. Trends emerging over the years
-    - Preferred configuration field values during certain times
-    - Configuration almost never used
-    - Companies STARTING to use NEL in big numbers
-    - Companies STOPPING to use NEL in big numbers
+       This section is to be complemented with the Selenium real-time crawling script: 
+         - Compare results of point 8. (this) for the latest available month (probably 2024-02)
+           with the results of a real-time Selenium crawl
 
+	9. Eligible domains to crawl for NEL in Real-Time
+       a. Domains having interesting ratio of NEL-monitored resources to non-NEL-monitored resources (high url_domain_hosted_resources_with_nel)
+       b. Domains from the TRANCO list
 
-6. Domains eligible for real-time analysis
-    1. Pick out some domains having a large number of subdomains and sub-pages crawled on HTTP Archive
-    2. Run Selenium scripts on those and compare output
-
-
-[//]: # (TODO Selenium script metrics)
+       Crawl these domains in real-time to add more interesting findings to the point 8. of this section 
+         - Is the deployed NEL on these domains consistent ? 
+         - Is the NEL-monitored to non-monitored ratio still the same ?
+      
+       In either way... the Selenium crawl scirpt will be separate of the Selenium analyis script, so new metrics
+       can be added at a later time. The important thing is crawling for the data.
