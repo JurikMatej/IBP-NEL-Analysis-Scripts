@@ -161,6 +161,12 @@ cython_debug/
 
 
 # Custom
+adhoc_test.ipynb
 gcp-secrets/
+httparchive_data/
 httparchive_data_raw/
 httparchive_data_raw_tests/
+
+download_config_full.json
+latex_testing.tex
+out/
