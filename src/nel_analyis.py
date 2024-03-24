@@ -54,7 +54,7 @@ def update_nel_collector_providers(month_data: pd.DataFrame, year: str, month: s
         "count": [len(rt_collectors_unique)] * len(top_4_providers),
         "top_4_providers": top_4_providers.index,
         "share_%": top_4_providers_share
-    }).reset_index(drop=True)
+    })
 
     return result
 
