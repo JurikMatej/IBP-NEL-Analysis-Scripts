@@ -164,6 +164,7 @@ SELECT
 
   url,
   url_domain,
+  url_domain_registrable,
   
   url_domain_hosted_resources,
   url_domain_hosted_resources_with_nel,
@@ -176,6 +177,9 @@ SELECT
   total_crawled_resources_with_nel,
   total_crawled_domains_with_nel,
 
+  total_crawled_resources_with_correct_nel,
+  total_crawled_domains_with_correct_nel,
+
   nel_max_age,
   nel_failure_fraction,
   nel_success_fraction,
@@ -183,6 +187,7 @@ SELECT
   nel_report_to,
 
   rt_collectors,
+  rt_collectors_registrable
 
 FROM (
     
@@ -505,8 +510,134 @@ FROM (
     /* END rt_field_extracting_table */
   )
   
-  /* START --TOP LEVEL QUERY-- */ 
-  SELECT
+
+  , rt_collectors_registrable_domain_table AS (
+    /* START rt_collectors_registrable_domain_table */
+    SELECT
+      requestId,
+      firstReq,
+      type,
+      ext,
+      status,
+      url,
+      url_domain,
+
+      url_domain_hosted_resources,
+      url_domain_hosted_resources_with_nel,
+
+      total_crawled_resources,
+      total_crawled_domains,
+      total_crawled_resources_with_nel,
+      total_crawled_domains_with_nel,
+
+      nel_max_age,
+      nel_failure_fraction,
+      nel_success_fraction,
+      nel_include_subdomains,
+      nel_report_to,
+
+      rt_group,
+      rt_collectors,
+
+      -- Parse either:
+      --    1. The registrable collector domains using an UP-TO-DATE Public Suffix List, 
+      --    2. Or, upon PSL parse failure - fallback to TLD + second to last domain label
+      ARRAY(
+        (SELECT 
+          IFNULL(
+            NET.REG_DOMAIN(rt_collector), 
+            REGEXP_EXTRACT(rt_collector, r"\.(\w+\.\w+$)") -- Extract TLD + second to last domain label
+          ) 
+          AS rt_collector_registrable 
+        FROM 
+          UNNEST(rt_collectors) AS rt_collector)
+      ) 
+      AS rt_collectors_registrable
+
+    FROM rt_field_extracting_table
+    /* END rt_collectors_registrable_domain_table */
+  )
+  
+
+  , final_modifications_table AS (
+    /* START final_modifications_table */ 
+    SELECT
+      requestId,
+      firstReq,
+      type,
+      ext,
+      status,
+      url,
+      url_domain,
+      IFNULL(
+        NET.REG_DOMAIN(url_domain), 
+        REGEXP_EXTRACT(url_domain, r"\.(\w+\.\w+$)") -- Extract TLD + second to last domain label
+      ) 
+      AS url_domain_registrable,
+
+      url_domain_hosted_resources,
+      url_domain_hosted_resources_with_nel,
+      ROUND(
+        SAFE_MULTIPLY(
+          SAFE_DIVIDE(url_domain_hosted_resources_with_nel, url_domain_hosted_resources), 
+        100), 
+      2) 
+      AS url_domain_monitored_resources_ratio,
+
+      total_crawled_resources,
+      total_crawled_domains,
+      
+      total_crawled_resources_with_nel,
+      total_crawled_domains_with_nel,
+    
+      nel_max_age,
+      
+      CASE 
+        -- Make 0 and 1 (both end-values) always of length 3
+        WHEN nel_failure_fraction = '0' THEN '0.0' 
+        WHEN nel_failure_fraction = '1' THEN '1.0'
+        
+        -- Coallesce NULL values to default value
+        WHEN nel_failure_fraction IS NULL THEN '1.0'
+
+        -- Otherwise keep as is
+        ELSE nel_failure_fraction
+      END
+      AS nel_failure_fraction,
+      
+      CASE 
+        -- Make 0 and 1 (both end-values) always of length 3
+        WHEN nel_success_fraction = '0' THEN '0.0' 
+        WHEN nel_success_fraction = '1' THEN '1.0'
+        
+        -- Coallesce NULL values to default value
+        WHEN nel_success_fraction IS NULL THEN '0.0'
+
+        -- Otherwise keep as is
+        ELSE nel_success_fraction
+      END
+      AS nel_success_fraction,
+
+      IFNULL(nel_include_subdomains, 'false') AS nel_include_subdomains,
+      nel_report_to,
+    
+      rt_collectors,
+      rt_collectors_registrable
+
+    
+    FROM rt_collectors_registrable_domain_table
+    
+    -- Finally, filter out incorrect NEL usage 
+    -- NEL.report-to must equal Report-To.group
+    WHERE nel_report_to = rt_group 
+          AND nel_report_to IS NOT NULL
+          AND rt_group IS NOT NULL 
+
+    /* END final_modifications_table */
+  )
+
+  /* START --TOP LEVEL QUERY-- */
+  SELECT 
     requestId,
     firstReq,
     type,
@@ -514,38 +645,43 @@ FROM (
     status,
     url,
     url_domain,
+    url_domain_registrable,
 
     url_domain_hosted_resources,
     url_domain_hosted_resources_with_nel,
-    
-    ROUND(
-      SAFE_MULTIPLY(
-        SAFE_DIVIDE(url_domain_hosted_resources_with_nel, url_domain_hosted_resources), 
-      100), 
-    2) url_domain_monitored_resources_ratio,
+    url_domain_monitored_resources_ratio,
 
     total_crawled_resources,
     total_crawled_domains,
     
     total_crawled_resources_with_nel,
     total_crawled_domains_with_nel,
+
+    (SELECT COUNT(url) FROM final_modifications_table) AS total_crawled_resources_with_correct_nel,
+    
+    (SELECT 
+      COUNT(url_domain) 
+     FROM (
+        SELECT 
+          MAX(requestid),
+          url_domain,
+        FROM final_modifications_table
+        GROUP BY url_domain
+     )
+    )
+    AS total_crawled_domains_with_correct_nel,
   
     nel_max_age,
-    IFNULL(nel_failure_fraction, '1.0') nel_failure_fraction,
-    IFNULL(nel_success_fraction, '0.0') nel_success_fraction,
-    IFNULL(nel_include_subdomains, 'false') nel_include_subdomains,
+    nel_failure_fraction,
+    nel_success_fraction,
+    nel_include_subdomains,
     nel_report_to,
   
     rt_collectors,
-  
-  FROM rt_field_extracting_table
-  
-  -- Finally, filter out incorrect NEL usage 
-  -- NEL.report-to must equal Report-To.group
-  WHERE nel_report_to = rt_group 
-        AND nel_report_to IS NOT NULL
-        AND rt_group IS NOT NULL 
-  
+    rt_collectors_registrable
+
+  FROM final_modifications_table
+  ORDER BY url_domain ASC
   /* END --TOP LEVEL QUERY-- */
 )
 """

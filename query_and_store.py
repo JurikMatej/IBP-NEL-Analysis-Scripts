@@ -184,6 +184,7 @@ def _create_temp_table(client: bigquery.Client):
         bigquery.SchemaField("status", "INTEGER"),
         bigquery.SchemaField("url", "STRING"),
         bigquery.SchemaField("url_domain", "STRING"),
+        bigquery.SchemaField("url_domain_registrable", "STRING"),
         bigquery.SchemaField("url_domain_hosted_resources", "INTEGER"),
         bigquery.SchemaField("url_domain_hosted_resources_with_nel", "INTEGER"),
         bigquery.SchemaField("url_domain_monitored_resources_ratio", "FLOAT"),
@@ -191,12 +192,15 @@ def _create_temp_table(client: bigquery.Client):
         bigquery.SchemaField("total_crawled_domains", "INTEGER"),
         bigquery.SchemaField("total_crawled_resources_with_nel", "INTEGER"),
         bigquery.SchemaField("total_crawled_domains_with_nel", "INTEGER"),
+        bigquery.SchemaField("total_crawled_resources_with_correct_nel", "INTEGER"),
+        bigquery.SchemaField("total_crawled_domains_with_correct_nel", "INTEGER"),
         bigquery.SchemaField("nel_max_age", "STRING"),
         bigquery.SchemaField("nel_failure_fraction", "STRING"),
         bigquery.SchemaField("nel_success_fraction", "STRING"),
         bigquery.SchemaField("nel_include_subdomains", "STRING"),
         bigquery.SchemaField("nel_report_to", "STRING"),
         bigquery.SchemaField("rt_collectors", "STRING", mode="REPEATED"),
+        bigquery.SchemaField("rt_collectors_registrable", "STRING", mode="REPEATED"),
     ]
 
     table = bigquery.Table(table_id, schema=nel_data_schema)
