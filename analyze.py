@@ -32,12 +32,12 @@ logger = logging.getLogger(__name__)
 NEL_DATA_DIR_PATH = "httparchive_data_raw"
 PSL_DIR_PATH = "public_suffix_lists"
 
-# Pandas config
-pd.options.display.float_format = '{:.2f}'.format
+# Pandas config (TODO use eventually only for visualization)
+# pd.options.display.float_format = '{:.2f}'.format
 
 # Metrics
 METRIC_AGGREGATES = {
-    "yearly_nel_deployment": pd.DataFrame({
+    "monthly_nel_deployment": pd.DataFrame({
         "date": [],
         "domains": [],
         "nel": [],
@@ -46,7 +46,7 @@ METRIC_AGGREGATES = {
     "nel_collector_providers": pd.DataFrame({
         "date": [],
         "count": [],
-        "top_4_providers": [],
+        "top_providers": [],
         "share_%": [],
     })
 }
@@ -92,9 +92,9 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
             month_data = pd.read_parquet(input_file)
 
             # Metric 1 aggregation
-            yearly_nel_deployment_next = nel_analysis.yearly_nel_deployment_next(month_data, year, month)
-            metric_aggregates['yearly_nel_deployment'] = pd.concat(
-                [metric_aggregates['yearly_nel_deployment'], yearly_nel_deployment_next])
+            yearly_nel_deployment_next = nel_analysis.update_monthly_nel_deployment(month_data, year, month)
+            metric_aggregates['monthly_nel_deployment'] = pd.concat(
+                [metric_aggregates['monthly_nel_deployment'], yearly_nel_deployment_next])
 
             # Metric 2 aggregation
             nel_collector_providers_next = nel_analysis.update_nel_collector_providers(
@@ -105,7 +105,7 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
         print()
 
     # Metric 1 output
-    nel_analysis.produce_output_yearly_nel_deployment(metric_aggregates['yearly_nel_deployment'])
+    nel_analysis.produce_output_yearly_nel_deployment(metric_aggregates['monthly_nel_deployment'])
     # Metric 2 output
     nel_analysis.produce_output_nel_collector_providers(metric_aggregates['nel_collector_providers'])
 
