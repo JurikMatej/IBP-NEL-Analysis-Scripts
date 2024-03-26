@@ -79,6 +79,10 @@ from src.bq_parametrized_queries import \
     QUERY_NEL_DATA_HEADER_2_DESKTOP_1_MOBILE, \
     QUERY_NEL_DATA_HEADER_2_DESKTOP_2_MOBILE, \
     QUERY_NEL_DATA_BODY
+from src.data_schemas import \
+    PYARROW_MERGE_WRITE_SCHEMA, \
+    PYARROW_MERGE_READ_SCHEMA, \
+    BIGQUERY_NEL_DATA_SCHEMA
 
 
 # LOGGING
@@ -176,34 +180,7 @@ def _create_temp_table(client: bigquery.Client):
     """
     table_id = f"{GC_PROJECT_NAME}.{GC_BQ_DATASET_NAME}.{GC_BQ_TEMP_TABLE_NAME}"
 
-    nel_data_schema = [
-        bigquery.SchemaField("requestId", "INTEGER"),
-        bigquery.SchemaField("firstReq", "BOOLEAN"),
-        bigquery.SchemaField("type", "STRING"),
-        bigquery.SchemaField("ext", "STRING"),
-        bigquery.SchemaField("status", "INTEGER"),
-        bigquery.SchemaField("url", "STRING"),
-        bigquery.SchemaField("url_domain", "STRING"),
-        bigquery.SchemaField("url_domain_registrable", "STRING"),
-        bigquery.SchemaField("url_domain_hosted_resources", "INTEGER"),
-        bigquery.SchemaField("url_domain_hosted_resources_with_nel", "INTEGER"),
-        bigquery.SchemaField("url_domain_monitored_resources_ratio", "FLOAT"),
-        bigquery.SchemaField("total_crawled_resources", "INTEGER"),
-        bigquery.SchemaField("total_crawled_domains", "INTEGER"),
-        bigquery.SchemaField("total_crawled_resources_with_nel", "INTEGER"),
-        bigquery.SchemaField("total_crawled_domains_with_nel", "INTEGER"),
-        bigquery.SchemaField("total_crawled_resources_with_correct_nel", "INTEGER"),
-        bigquery.SchemaField("total_crawled_domains_with_correct_nel", "INTEGER"),
-        bigquery.SchemaField("nel_max_age", "STRING"),
-        bigquery.SchemaField("nel_failure_fraction", "STRING"),
-        bigquery.SchemaField("nel_success_fraction", "STRING"),
-        bigquery.SchemaField("nel_include_subdomains", "STRING"),
-        bigquery.SchemaField("nel_report_to", "STRING"),
-        bigquery.SchemaField("rt_collectors", "STRING", mode="REPEATED"),
-        bigquery.SchemaField("rt_collectors_registrable", "STRING", mode="REPEATED"),
-    ]
-
-    table = bigquery.Table(table_id, schema=nel_data_schema)
+    table = bigquery.Table(table_id, schema=BIGQUERY_NEL_DATA_SCHEMA)
 
     try:
         table = client.create_table(table)  # Make an API request.
@@ -359,13 +336,14 @@ def merge_downloaded_blobs_into_single_file(result_data_file_name: str):
                        "aborting merging downloaded NEL data into a single file")
         return
 
-    schema = pq.ParquetFile(files[0]).schema_arrow
-
     result_path = f"{DOWNLOAD_OUTPUT_DIR_PATH}/{result_data_file_name}.parquet"
-    with pq.ParquetWriter(result_path, schema=schema) as writer:
+    with pq.ParquetWriter(result_path, schema=PYARROW_MERGE_WRITE_SCHEMA) as writer:
         for parquet_file in files:
             # Merge each standalone blob into a single file
-            writer.write_table(pq.read_table(parquet_file, schema=schema))
+            table = pq.read_table(parquet_file, schema=PYARROW_MERGE_READ_SCHEMA)
+
+            casted_table = table.cast(PYARROW_MERGE_WRITE_SCHEMA)
+            writer.write_table(casted_table)
             # Remove the blob after, so it does not get merged to subsequent data tables
             parquet_file.unlink()
 
