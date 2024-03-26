@@ -225,11 +225,11 @@ All data files must be stored in the same directory.
          - plot point (heat) content: count of collectors handling the reports
 
     5. Additional interesting collector metrics:
-        - len(rt_collectors) as a metric      
-        - top N primary collectors     
-        - top N secondary collectors
-        - top N tertiary collectors (probably stop at secondary collectors)     
-        - top N TOTAL (all occurrences, any priority) collectors
+        a. len(rt_collectors) as a metric      
+        b. top N primary collectors     
+        c. top N secondary collectors
+        d. top N tertiary collectors (probably stop at secondary collectors)     
+        e. top N TOTAL (all occurrences, any priority) collectors
 
     6. Ratio of NEL-monitored resources to non-NEL-monitored resources
        - url_domain_hosted_resources_with_nel / url_domain_hosted_resources * 100 (for each domain; worth precalculating in BigQuery)

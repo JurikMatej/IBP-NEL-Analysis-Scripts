@@ -11,6 +11,7 @@ import io
 import logging
 import sys
 import pathlib
+import gc
 from typing import List
 
 import pandas as pd
@@ -22,7 +23,6 @@ from src import psl_utils
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format='%(asctime)s:%(levelname)s\t- %(message)s')
 logger = logging.getLogger(__name__)
-
 
 ###############################
 # CONFIGURE THESE BEFORE USE: #
@@ -43,11 +43,14 @@ METRIC_AGGREGATES = {
         "nel": [],
         "nel_percentage": []
     }),
-    "nel_collector_providers": pd.DataFrame({
+    "nel_collector_provider_usage": pd.DataFrame({
         "date": [],
-        "count": [],
-        "top_providers": [],
-        "share_%": [],
+        "providers": [],
+        "as_primary": [],
+        "share_as_primary": [],
+        "as_secondary": [],
+        "share_as_secondary": [],
+        "among_fallback": [],
     })
 }
 
@@ -75,8 +78,7 @@ def main():
 
 def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
                  metric_aggregates: dict[str, pd.DataFrame]):
-
-    for input_file in input_files:  # UTILIZE THREAD POOL EXECUTOR ?
+    for input_file in input_files:
         logger.info(f"---{input_file.name.upper()}---")
 
         # Convention: nel_data_YYYY_MM.parquet
@@ -86,28 +88,37 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
 
         # The used PSL library needs the PSL as file-like type to read from
         # So to avoid saving temporary files to disk, StringIO() is used
-        with io.StringIO() as psl_IO:
+        with (io.StringIO() as psl_IO):
             psl_IO.write(psl)
 
-            month_data = pd.read_parquet(input_file)
-
-            # Metric 1 aggregation
-            yearly_nel_deployment_next = nel_analysis.update_monthly_nel_deployment(month_data, year, month)
+            # Deployment data
+            monthly_nel_deployment_next = nel_analysis.update_monthly_nel_deployment(
+                input_file,
+                year,
+                month)
             metric_aggregates['monthly_nel_deployment'] = pd.concat(
-                [metric_aggregates['monthly_nel_deployment'], yearly_nel_deployment_next])
+                [metric_aggregates['monthly_nel_deployment'], monthly_nel_deployment_next])
 
-            # Metric 2 aggregation
-            nel_collector_providers_next = nel_analysis.update_nel_collector_providers(
-                month_data, year, month, reset_psl_file(psl_IO))
-            metric_aggregates["nel_collector_providers"] = pd.concat(
-                [metric_aggregates["nel_collector_providers"], nel_collector_providers_next])
+            # Collector data
+            nel_collector_usage_next = nel_analysis.update_nel_collector_provider_usage(
+                input_file,
+                metric_aggregates["nel_collector_provider_usage"]['providers'],
+                year,
+                month,
+                reset_psl_file(psl_IO)
+            )
+            metric_aggregates["nel_collector_provider_usage"] = pd.concat(
+                [metric_aggregates["nel_collector_provider_usage"], nel_collector_usage_next])
+
+            gc.collect()
 
         print()
 
-    # Metric 1 output
+    # Deployment data output
     nel_analysis.produce_output_yearly_nel_deployment(metric_aggregates['monthly_nel_deployment'])
-    # Metric 2 output
-    nel_analysis.produce_output_nel_collector_providers(metric_aggregates['nel_collector_providers'])
+
+    # Collector data output
+    nel_analysis.produce_output_nel_collector_provider_usage(metric_aggregates['nel_collector_provider_usage'])
 
     logger.info("Done. Exiting...")
 
