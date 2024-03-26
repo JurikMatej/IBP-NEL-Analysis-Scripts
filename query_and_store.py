@@ -412,7 +412,11 @@ def main():
     print()
 
     # Prepare download infrastructure on this device
-    pathlib.Path(DOWNLOAD_TEMP_BLOBS_DIR_PATH).mkdir(parents=True, exist_ok=True)
+    temp_blob_dir = pathlib.Path(DOWNLOAD_TEMP_BLOBS_DIR_PATH)
+    temp_blob_dir.mkdir(parents=True, exist_ok=True)
+
+    # Clean all residual blobs before beginning (does nothing in case of a clean (first) run of this script)
+    [x.unlink() for x in list(temp_blob_dir.glob("*"))]
 
     # Run query & store
     with open(DOWNLOAD_CONFIG_PATH, 'r') as config_file:
