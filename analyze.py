@@ -12,9 +12,10 @@ import logging
 import sys
 import pathlib
 import gc
-from typing import List
+from typing import List, Dict
 
 import pandas as pd
+from pandas import DataFrame
 
 import src.nel_analyis as nel_analysis
 from src import psl_utils
@@ -37,13 +38,13 @@ PSL_DIR_PATH = "public_suffix_lists"
 
 # Metrics
 METRIC_AGGREGATES = {
-    "monthly_nel_deployment": pd.DataFrame({
+    "monthly_nel_deployment": DataFrame({
         "date": [],
         "domains": [],
         "nel": [],
         "nel_percentage": []
     }),
-    "nel_collector_provider_usage": pd.DataFrame({
+    "nel_collector_provider_usage": DataFrame({
         "date": [],
         "providers": [],
         "as_primary": [],
@@ -51,7 +52,33 @@ METRIC_AGGREGATES = {
         "as_secondary": [],
         "share_as_secondary": [],
         "among_fallback": [],
-    })
+    }),
+    "nel_config": {
+        "failure_fraction": DataFrame({
+            "date": [],
+            "nel_failure_fraction": [],
+            "domain_count": [],
+            "domain_percent": []
+        }),
+        "success_fraction": DataFrame({
+            "date": [],
+            "nel_success_fraction": [],
+            "domain_count": [],
+            "domain_percent": []
+        }),
+        "include_subdomains": DataFrame({
+            "date": [],
+            "nel_include_subdomains": [],
+            "domain_count": [],
+            "domain_percent": []
+        }),
+        "max_age": DataFrame({
+            "date": [],
+            "nel_max_age": [],
+            "domain_count": [],
+            "domain_percent": []
+        })
+    }
 }
 
 
@@ -77,7 +104,7 @@ def main():
 
 
 def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
-                 metric_aggregates: dict[str, pd.DataFrame]):
+                 metric_aggregates: Dict[str, DataFrame]):
     for input_file in input_files:
         logger.info(f"---{input_file.name.upper()}---")
 
@@ -88,7 +115,7 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
 
         # The used PSL library needs the PSL as file-like type to read from
         # So to avoid saving temporary files to disk, StringIO() is used
-        with (io.StringIO() as psl_IO):
+        with io.StringIO() as psl_IO:
             psl_IO.write(psl)
 
             # Deployment data
@@ -96,19 +123,43 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
                 input_file,
                 year,
                 month)
-            metric_aggregates['monthly_nel_deployment'] = pd.concat(
-                [metric_aggregates['monthly_nel_deployment'], monthly_nel_deployment_next])
+            metric_aggregates['monthly_nel_deployment'] = concat_metric_aggregate(
+                metric_aggregates['monthly_nel_deployment'],
+                monthly_nel_deployment_next
+            )
 
             # Collector data
-            nel_collector_usage_next = nel_analysis.update_nel_collector_provider_usage(
+            nel_collector_provider_usage = nel_analysis.update_nel_collector_provider_usage(
                 input_file,
                 metric_aggregates["nel_collector_provider_usage"]['providers'],
                 year,
                 month,
+                reset_psl_file(psl_IO))
+            metric_aggregates["nel_collector_provider_usage"] = concat_metric_aggregate(
+                metric_aggregates["nel_collector_provider_usage"],
+                nel_collector_provider_usage
+            )
+
+            nel_config_next = nel_analysis.update_nel_config(
+                input_file,
+                year,
+                month,
                 reset_psl_file(psl_IO)
             )
-            metric_aggregates["nel_collector_provider_usage"] = pd.concat(
-                [metric_aggregates["nel_collector_provider_usage"], nel_collector_usage_next])
+            metric_aggregates["nel_config"]['failure_fraction'] = \
+                concat_metric_aggregate(metric_aggregates["nel_config"]['failure_fraction'],
+                                        nel_config_next['failure_fraction'])
+
+            metric_aggregates["nel_config"]['success_fraction'] = \
+                concat_metric_aggregate(metric_aggregates["nel_config"]['success_fraction'],
+                                        nel_config_next['success_fraction'])
+
+            metric_aggregates["nel_config"]['include_subdomains'] = \
+                concat_metric_aggregate(metric_aggregates["nel_config"]['include_subdomains'],
+                                        nel_config_next['include_subdomains'])
+
+            metric_aggregates["nel_config"]['max_age'] = \
+                concat_metric_aggregate(metric_aggregates["nel_config"]['max_age'], nel_config_next['max_age'])
 
             gc.collect()
 
@@ -120,12 +171,22 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
     # Collector data output
     nel_analysis.produce_output_nel_collector_provider_usage(metric_aggregates['nel_collector_provider_usage'])
 
+    # Configuration data output
+    nel_analysis.produce_output_nel_config(metric_aggregates['nel_config'])
+
     logger.info("Done. Exiting...")
 
 
 def reset_psl_file(psl_file: io.StringIO) -> io.StringIO:
     psl_file.seek(0)
     return psl_file
+
+
+def concat_metric_aggregate(aggregated: DataFrame, to_aggregate: DataFrame):
+    if len(aggregated) == 0:
+        return to_aggregate
+    else:
+        return pd.concat([aggregated, to_aggregate])
 
 
 if __name__ == "__main__":

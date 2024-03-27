@@ -1,5 +1,6 @@
 import gc
 from io import StringIO
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -11,11 +12,11 @@ from pathlib import Path
 from src import psl_utils
 
 # METRIC LEGEND: (see docs/data-contract)
-#   cX = custom metrics number X
-#   bX = base metrics number X
-#   cX (bY) = custom metrics number X - fulfills Y from base metrics b
+#   cX = custom metric number X
+#   bX = base metric number X
+#   cX (bY) = custom metric number X - fulfills Y from base metric b
 
-# TODO PREPARE DATA FOR: c6, c7, c8
+# TODO PREPARE DATA FOR: c6, c8
 
 
 def update_monthly_nel_deployment(month_data_file: Path, year: str, month: str):
@@ -128,5 +129,102 @@ def update_nel_collector_provider_usage(month_data_file: Path, aggregated_provid
     return result.reset_index().drop(columns=['index'])
 
 
-def produce_output_nel_collector_provider_usage(aggregated_metric: pd.DataFrame):
+def produce_output_nel_collector_provider_usage(aggregated_metric: DataFrame):
     aggregated_metric.to_html("out/nel_collector_provider_usage.html")
+
+
+def update_nel_config(input_file: Path, year: str, month: str, used_psl: StringIO):
+    """
+    PREPARES DATA FOR: c7
+
+    IMPL NOTE: I deliberately avoid loading all the data and making copies of it here to trade computing time for RAM.
+    """
+    #
+    # failure_fraction
+    #
+    data = pd.read_parquet(input_file, columns=['url_domain', 'nel_failure_fraction'])
+    ff_data = DataFrame({
+        "date": [f"{year}-{month}"] * len(data),
+        "url_domain": data['url_domain'],
+        "nel_failure_fraction": data['nel_failure_fraction']
+    })
+    del data
+    gc.collect()
+
+    ff_data = ff_data.groupby(['date', 'url_domain'], as_index=False, observed=False).first()
+    ff_data_length = len(ff_data)
+    ff_data = ff_data.groupby(['date', 'nel_failure_fraction'], as_index=False, observed=False).agg(
+        domain_count=("url_domain", "count"))
+    ff_data['domain_percent'] = ff_data['domain_count'] / ff_data_length * 100
+
+    #
+    # success_fraction
+    #
+    data = pd.read_parquet(input_file, columns=['url_domain', 'nel_success_fraction'])
+    sf_data = DataFrame({
+        "date": [f"{year}-{month}"] * len(data),
+        "url_domain": data['url_domain'],
+        "nel_success_fraction": data['nel_success_fraction']
+    })
+    del data
+    gc.collect()
+
+    sf_data = sf_data.groupby(['date', 'url_domain'], as_index=False, observed=False).first()
+    sf_data_length = len(sf_data)
+    sf_data = sf_data.groupby(['date', 'nel_success_fraction'], as_index=False, observed=False).agg(
+        domain_count=("url_domain", "count"))
+    sf_data['domain_percent'] = sf_data['domain_count'] / sf_data_length * 100
+
+    #
+    # include_subdomains
+    #
+    data = pd.read_parquet(input_file, columns=['url_domain', 'nel_include_subdomains'])
+    is_data = DataFrame({
+        "date": [f"{year}-{month}"] * len(data),
+        "url_domain": data['url_domain'],
+        "nel_include_subdomains": data['nel_include_subdomains']
+    })
+    del data
+    gc.collect()
+
+    is_data = is_data.groupby(['date', 'url_domain'], as_index=False, observed=False).first()
+    is_data_length = len(is_data)
+    is_data = is_data.groupby(['date', 'nel_include_subdomains'], as_index=False, observed=False).agg(
+        domain_count=("url_domain", "count"))
+    is_data['domain_percent'] = is_data['domain_count'] / is_data_length * 100
+
+    #
+    # max_age
+    #
+    data = pd.read_parquet(input_file, columns=['url_domain', 'nel_max_age'])
+    ma_data = DataFrame({
+        "date": [f"{year}-{month}"] * len(data),
+        "url_domain": data['url_domain'],
+        "nel_max_age": data['nel_max_age']
+    })
+    del data
+    gc.collect()
+
+    ma_data = ma_data.groupby(['date', 'url_domain'], as_index=False, observed=False).first()
+    ma_data_length = len(ma_data)
+    ma_data = ma_data.groupby(['date', 'nel_max_age'], as_index=True, observed=False).agg(
+        domain_count=("url_domain", "count"))
+    ma_data.reset_index(inplace=True)  # Used as_index=True here because of unexpected an index length problem
+
+    ma_data['nel_max_age'] = ma_data['nel_max_age'].astype("UInt64")
+    ma_data.sort_values(by='nel_max_age', ascending=True, inplace=True)
+
+    ma_data['domain_percent'] = ma_data['domain_count'] / ma_data_length * 100
+
+    result = {
+        "failure_fraction": ff_data.reset_index(drop=True),
+        "success_fraction": sf_data.reset_index(drop=True),
+        "include_subdomains": is_data.reset_index(drop=True),
+        "max_age": ma_data.reset_index(drop=True)
+    }
+
+    return result
+
+
+def produce_output_nel_config(aggregated_metric: Dict[str, DataFrame]):
+    [metric.to_html(f"out/nel_config-{metric_name}.html") for (metric_name, metric) in aggregated_metric.items()]
