@@ -19,7 +19,7 @@ from src import psl_utils
 # TODO PREPARE DATA FOR: c6, c8
 
 
-def update_monthly_nel_deployment(month_data_file: Path, year: str, month: str):
+def update_nel_deployment(month_data_file: Path, year: str, month: str) -> DataFrame:
     """PREPARES DATA FOR: c2 (b1)"""
 
     # Read only the first row of the month data file (necessary data is already precomputed)
@@ -52,11 +52,11 @@ def update_monthly_nel_deployment(month_data_file: Path, year: str, month: str):
 def produce_output_yearly_nel_deployment(aggregated_metric: DataFrame):
     aggregated_metric['domains'] = aggregated_metric['domains'].astype(int)
     aggregated_metric['nel'] = aggregated_metric['nel'].astype(int)
-    aggregated_metric.to_html("out/monthly_nel_deployment.html")
+    aggregated_metric.to_html("out/nel_deployment.html")
 
 
 def update_nel_collector_provider_usage(month_data_file: Path, aggregated_providers: Series, year: str, month: str,
-                                        used_psl: StringIO):
+                                        used_psl: StringIO) -> DataFrame:
     """PREPARES DATA FOR: c1, c2 (b2 & b3), c4, c5"""
 
     data = pd.read_parquet(month_data_file,
@@ -133,7 +133,7 @@ def produce_output_nel_collector_provider_usage(aggregated_metric: DataFrame):
     aggregated_metric.to_html("out/nel_collector_provider_usage.html")
 
 
-def update_nel_config(input_file: Path, year: str, month: str, used_psl: StringIO):
+def update_nel_config(input_file: Path, year: str, month: str, used_psl: StringIO) -> Dict[str, DataFrame]:
     """
     PREPARES DATA FOR: c7
 
@@ -228,3 +228,19 @@ def update_nel_config(input_file: Path, year: str, month: str, used_psl: StringI
 
 def produce_output_nel_config(aggregated_metric: Dict[str, DataFrame]):
     [metric.to_html(f"out/nel_config-{metric_name}.html") for (metric_name, metric) in aggregated_metric.items()]
+
+
+def update_monitored_resource_type(input_file: Path, year: str, month: str, used_psl: StringIO) -> DataFrame:
+    """TODO generates GBs of html data - fix pls"""
+    data = pd.read_parquet(input_file, columns=['url_domain', 'type'])
+
+    data['date'] = f"{year}-{month}"
+    data['tmp'] = 1  # Prepare temporary column for counting instances of a monitored type per url_domain
+    result = data.groupby(['date', 'url_domain', 'type'], as_index=True, observed=False).agg(count=('tmp', 'count'))
+    result.reset_index(inplace=True)  # Used as_index=True here because of unexpected an index length problem
+
+    return result
+
+
+def produce_output_nel_monitored_resource_type(aggregated_metric: DataFrame):
+    aggregated_metric.to_html("out/nel_monitored_resource_type.html")

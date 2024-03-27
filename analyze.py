@@ -38,7 +38,7 @@ PSL_DIR_PATH = "public_suffix_lists"
 
 # Metrics
 METRIC_AGGREGATES = {
-    "monthly_nel_deployment": DataFrame({
+    "nel_deployment": DataFrame({
         "date": [],
         "domains": [],
         "nel": [],
@@ -78,7 +78,14 @@ METRIC_AGGREGATES = {
             "domain_count": [],
             "domain_percent": []
         })
-    }
+    },
+    "nel_monitored_resource_type": DataFrame({
+        "date": [],
+        "domain": [],
+        "resource_type": [],
+        "count": [],
+        "percentage": []
+    })
 }
 
 
@@ -119,13 +126,10 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
             psl_IO.write(psl)
 
             # Deployment data
-            monthly_nel_deployment_next = nel_analysis.update_monthly_nel_deployment(
-                input_file,
-                year,
-                month)
-            metric_aggregates['monthly_nel_deployment'] = concat_metric_aggregate(
-                metric_aggregates['monthly_nel_deployment'],
-                monthly_nel_deployment_next
+            nel_deployment_next = nel_analysis.update_nel_deployment(input_file, year, month)
+            metric_aggregates['nel_deployment'] = concat_metric_aggregate(
+                metric_aggregates['nel_deployment'],
+                nel_deployment_next
             )
 
             # Collector data
@@ -140,6 +144,7 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
                 nel_collector_provider_usage
             )
 
+            # Configuration data
             nel_config_next = nel_analysis.update_nel_config(
                 input_file,
                 year,
@@ -148,31 +153,43 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
             )
             metric_aggregates["nel_config"]['failure_fraction'] = \
                 concat_metric_aggregate(metric_aggregates["nel_config"]['failure_fraction'],
-                                        nel_config_next['failure_fraction'])
-
+                                        nel_config_next['failure_fraction']
+                                        )
             metric_aggregates["nel_config"]['success_fraction'] = \
                 concat_metric_aggregate(metric_aggregates["nel_config"]['success_fraction'],
-                                        nel_config_next['success_fraction'])
-
+                                        nel_config_next['success_fraction']
+                                        )
             metric_aggregates["nel_config"]['include_subdomains'] = \
                 concat_metric_aggregate(metric_aggregates["nel_config"]['include_subdomains'],
-                                        nel_config_next['include_subdomains'])
-
+                                        nel_config_next['include_subdomains']
+                                        )
             metric_aggregates["nel_config"]['max_age'] = \
                 concat_metric_aggregate(metric_aggregates["nel_config"]['max_age'], nel_config_next['max_age'])
+
+            # Resource type data
+            nel_monitored_resource_type_next = nel_analysis.update_monitored_resource_type(
+                input_file,
+                year,
+                month,
+                reset_psl_file(psl_IO))
+            metric_aggregates["nel_monitored_resource_type"] = concat_metric_aggregate(
+                metric_aggregates["nel_monitored_resource_type"], nel_monitored_resource_type_next)
 
             gc.collect()
 
         print()
 
     # Deployment data output
-    nel_analysis.produce_output_yearly_nel_deployment(metric_aggregates['monthly_nel_deployment'])
+    nel_analysis.produce_output_yearly_nel_deployment(metric_aggregates['nel_deployment'])
 
     # Collector data output
     nel_analysis.produce_output_nel_collector_provider_usage(metric_aggregates['nel_collector_provider_usage'])
 
     # Configuration data output
     nel_analysis.produce_output_nel_config(metric_aggregates['nel_config'])
+
+    # Resource type data output
+    nel_analysis.produce_output_nel_monitored_resource_type(metric_aggregates['nel_monitored_resource_type'])
 
     logger.info("Done. Exiting...")
 
