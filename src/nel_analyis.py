@@ -11,6 +11,9 @@ from pathlib import Path
 
 from src import psl_utils
 
+RESOURCE_BATCH_SIZE = 50_000_000
+
+
 # METRIC LEGEND: (see docs/data-contract)
 #   cX = custom metric number X
 #   bX = base metric number X
@@ -19,11 +22,11 @@ from src import psl_utils
 # TODO PREPARE DATA FOR: c6, c8
 
 
-def update_nel_deployment(month_data_file: Path, year: str, month: str) -> DataFrame:
+def update_nel_deployment(input_file: Path, year: str, month: str) -> DataFrame:
     """PREPARES DATA FOR: c2 (b1)"""
 
     # Read only the first row of the month data file (necessary data is already precomputed)
-    parquet = pq.ParquetFile(month_data_file)
+    parquet = pq.ParquetFile(input_file)
     first_row = next(parquet.iter_batches(batch_size=1,
                                           columns=['total_crawled_domains', 'total_crawled_domains_with_correct_nel']))
     data = pa.Table.from_batches([first_row]).to_pandas()
@@ -55,11 +58,11 @@ def produce_output_yearly_nel_deployment(aggregated_metric: DataFrame):
     aggregated_metric.to_html("out/nel_deployment.html")
 
 
-def update_nel_collector_provider_usage(month_data_file: Path, aggregated_providers: Series, year: str, month: str,
+def update_nel_collector_provider_usage(input_file: Path, aggregated_providers: Series, year: str, month: str,
                                         used_psl: StringIO) -> DataFrame:
     """PREPARES DATA FOR: c1, c2 (b2 & b3), c4, c5"""
 
-    data = pd.read_parquet(month_data_file,
+    data = pd.read_parquet(input_file,
                            columns=['url_domain', 'rt_collectors_registrable'])
 
     collectors_per_url_domain = data.groupby(['url_domain'], observed=False).first()
@@ -230,6 +233,48 @@ def produce_output_nel_config(aggregated_metric: Dict[str, DataFrame]):
     [metric.to_html(f"out/nel_config-{metric_name}.html") for (metric_name, metric) in aggregated_metric.items()]
 
 
+def update_nel_resource_config(input_file: Path, year: str, month: str, used_psl: StringIO):
+    parquet = pq.ParquetFile(input_file)
+    data_batch_generator = parquet.iter_batches(batch_size=RESOURCE_BATCH_SIZE,
+                                                columns=[
+                                                    'url_domain',
+                                                    'nel_include_subdomains',
+                                                    'nel_failure_fraction',
+                                                    'nel_success_fraction',
+                                                    'nel_max_age'
+                                                ])
+    result = None
+
+    for batch in data_batch_generator:
+        data = batch.to_pandas()
+
+        data['resources_with_this_config'] = 1
+        batch_result = data.groupby(
+            ['url_domain', 'nel_include_subdomains', 'nel_failure_fraction', 'nel_success_fraction', 'nel_max_age'],
+            observed=True
+        ).agg({'resources_with_this_config': 'count'})
+
+        batch_result.reset_index(inplace=True)
+        batch_result = batch_result[(batch_result.duplicated(subset=['url_domain'], keep=False))]
+
+        if result is None:
+            # Store results the first time (or at least the schema if batch_result is empty)
+            result = batch_result
+        else:
+            if not batch_result.empty:
+                result = pd.concat([result, batch_result])
+
+    # Perform one more group by to handle in-between-the-batches duplicate results
+    # If the same NEL config is found for 2 domains, sum their resources_with_this_config numbers
+    result = result.groupby(
+            ['url_domain', 'nel_include_subdomains', 'nel_failure_fraction', 'nel_success_fraction', 'nel_max_age'],
+            observed=True, as_index=False
+        ).agg({'resources_with_this_config': 'sum'})
+
+    # TODO save the result instead
+    # return result
+
+
 def update_monitored_resource_type(input_file: Path, year: str, month: str, used_psl: StringIO) -> DataFrame:
     """TODO generates GBs of html data - fix pls"""
     data = pd.read_parquet(input_file, columns=['url_domain', 'type'])
@@ -238,6 +283,11 @@ def update_monitored_resource_type(input_file: Path, year: str, month: str, used
     data['tmp'] = 1  # Prepare temporary column for counting instances of a monitored type per url_domain
     result = data.groupby(['date', 'url_domain', 'type'], as_index=True, observed=False).agg(count=('tmp', 'count'))
     result.reset_index(inplace=True)  # Used as_index=True here because of unexpected an index length problem
+
+    # TODO save per month here; the resource based metrics generate too large results
+
+    del data
+    gc.collect()
 
     return result
 

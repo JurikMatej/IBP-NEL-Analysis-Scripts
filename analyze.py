@@ -144,7 +144,7 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
                 nel_collector_provider_usage
             )
 
-            # Configuration data
+            # Domain configuration data
             nel_config_next = nel_analysis.update_nel_config(
                 input_file,
                 year,
@@ -165,6 +165,14 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
                                         )
             metric_aggregates["nel_config"]['max_age'] = \
                 concat_metric_aggregate(metric_aggregates["nel_config"]['max_age'], nel_config_next['max_age'])
+
+            # Resource configuration data
+            nel_analysis.update_nel_resource_config(
+                input_file,
+                year,
+                month,
+                reset_psl_file(psl_IO)
+            )
 
             # Resource type data
             nel_monitored_resource_type_next = nel_analysis.update_monitored_resource_type(
