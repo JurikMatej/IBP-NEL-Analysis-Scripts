@@ -28,22 +28,36 @@ def update_nel_deployment(input_file: Path, year: str, month: str) -> DataFrame:
     # Read only the first row of the month data file (necessary data is already precomputed)
     parquet = pq.ParquetFile(input_file)
     first_row = next(parquet.iter_batches(batch_size=1,
-                                          columns=['total_crawled_domains', 'total_crawled_domains_with_correct_nel']))
+                                          columns=[
+                                              'total_crawled_resources',
+                                              'total_crawled_domains',
+                                              'total_crawled_resources_with_nel',
+                                              'total_crawled_domains_with_nel',
+                                              'total_crawled_resources_with_correct_nel',
+                                              'total_crawled_domains_with_correct_nel']))
     data = pa.Table.from_batches([first_row]).to_pandas()
 
     if len(data) == 0:
         # TODO no data = no record of total crawled domains
         return DataFrame()
 
-    total_domains = data['total_crawled_domains'][0]
-    total_nel_domains = data['total_crawled_domains_with_correct_nel'][0]
-    nel_percentage = np.uint32(total_nel_domains) / np.uint32(total_domains) * 100
+    total_crawled_resources = data['total_crawled_resources'][0]
+    total_crawled_domains = data['total_crawled_domains'][0]
+    total_crawled_resources_with_nel = data['total_crawled_resources_with_nel'][0]
+    total_crawled_domains_with_nel = data['total_crawled_domains_with_nel'][0]
+    total_crawled_resources_with_correct_nel = data['total_crawled_resources_with_correct_nel'][0]
+    total_crawled_domains_with_correct_nel = data['total_crawled_domains_with_correct_nel'][0]
+
+    # nel_percentage = np.uint32(total_nel_domains) / np.uint32(total_domains) * 100
 
     result = DataFrame({
         "date": [f"{year}-{month}"],
-        "domains": [total_domains],
-        "nel": [total_nel_domains],
-        "nel_percentage": [nel_percentage]
+        "total_crawled_resources": [total_crawled_resources],
+        "total_crawled_domains": [total_crawled_domains],
+        "total_crawled_resources_with_nel": [total_crawled_resources_with_nel],
+        "total_crawled_domains_with_nel": [total_crawled_domains_with_nel],
+        "total_crawled_resources_with_correct_nel": [total_crawled_resources_with_correct_nel],
+        "total_crawled_domains_with_correct_nel": [total_crawled_domains_with_correct_nel],
     }).reset_index(drop=True)
 
     del data
