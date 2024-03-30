@@ -247,11 +247,11 @@ All data files must be stored in the same directory.
           a. NEL Usage (as in point 1. of the previous section)
           b. Employed Collectors (as in point 2. & 3. of the previous section)
           c. Most used config (as in point 4. of the previous section)
-          d. Deployment changes in time (start, stop - as in point 4 of THIS section)
+          d. Deployment changes in time (start, stop - as in point 4. of THIS section)
 
-       Then... This section can be complemented with the Selenium real-time crawling script: 
+       Then... This point can be complemented with the Selenium real-time crawling script: 
           a. Compare results of point 8. (this section) 
-          b. Compare results of point 9. (this) for the latest available month (probably 2024-02)
+          b. Compare results of point 9. (this point) for the latest available month (probably 2024-02)
              with the results of a real-time Selenium crawl
 
 	10. Eligible domains to crawl for NEL in Real-Time
@@ -261,6 +261,7 @@ All data files must be stored in the same directory.
        Crawl these domains in real-time to add more interesting findings to the point 9. of this section 
          - Is the deployed NEL on these domains consistent ? 
          - Is the NEL-monitored to non-monitored ratio still the same ?
+         - What are the prevalent types of monitored resources ?
       
        In either way... the Selenium crawl scirpt will be separate of the Selenium analyis script, so new metrics
        can be added at a later time. The important thing is crawling for the data.

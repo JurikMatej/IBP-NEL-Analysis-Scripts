@@ -1,14 +1,15 @@
 import pandas as pd
+from pandas import DataFrame
 
 
-def get_registrable_collectors_for_unique_domains_with_nel(nel_resources_with_rt_collectors_df: pd.DataFrame) -> pd.Series:
-    tmp_df = nel_resources_with_rt_collectors_df.copy()
+def load_tranco_list_for_current_month(year: str, month: str) -> DataFrame | None:
+    popular_domain_name_column_idx = 1
 
-    tmp_df = tmp_df.dropna(subset=['url_domain'])
-
-    # IMPORTANT NOTE: taking the first found rt_collectors set for a unique domain here
-    # (assuming that the domain has consistent NEL setup deployed - all resources share the same primary NEL collector)
-    return tmp_df.groupby(['url_domain']).agg({
-        "rt_collectors_registrable": "first"
-    }).reset_index()
-
+    try:
+        return pd.read_csv(f"tranco/tranco_{year}_{month}.csv",
+                           header=None,
+                           usecols=[popular_domain_name_column_idx],
+                           names=['popular_domain_name'])
+    except FileNotFoundError:
+        # No tranco list = no popular domain results
+        return None

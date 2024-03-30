@@ -15,7 +15,7 @@ import gc
 from typing import List, Dict
 
 import pandas as pd
-from pandas import DataFrame
+from pandas import DataFrame, Series
 
 import src.nel_analyis as nel_analysis
 from src import psl_utils
@@ -33,10 +33,9 @@ logger = logging.getLogger(__name__)
 NEL_DATA_DIR_PATH = "httparchive_data_raw"
 PSL_DIR_PATH = "public_suffix_lists"
 
-# Pandas config (TODO use eventually only for visualization)
-# pd.options.display.float_format = '{:.2f}'.format
 
 # Metrics
+# TODO remove this. Persist data on the disk in a structured manner instead
 METRIC_AGGREGATES = {
     "nel_deployment": DataFrame({
         "date": [],
@@ -85,7 +84,8 @@ METRIC_AGGREGATES = {
         "resource_type": [],
         "count": [],
         "percentage": []
-    })
+    }),
+    "nel_popular_collector_providers": Series([], name="providers")
 }
 
 
@@ -127,7 +127,7 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
 
             # Deployment data
             nel_deployment_next = nel_analysis.update_nel_deployment(input_file, year, month)
-            metric_aggregates['nel_deployment'] = concat_metric_aggregate(
+            metric_aggregates['nel_deployment'] = concat_metric_aggregate_dataframe(
                 metric_aggregates['nel_deployment'],
                 nel_deployment_next
             )
@@ -139,7 +139,7 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
                 year,
                 month,
                 reset_psl_file(psl_IO))
-            metric_aggregates["nel_collector_provider_usage"] = concat_metric_aggregate(
+            metric_aggregates["nel_collector_provider_usage"] = concat_metric_aggregate_dataframe(
                 metric_aggregates["nel_collector_provider_usage"],
                 nel_collector_provider_usage
             )
@@ -152,22 +152,22 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
                 reset_psl_file(psl_IO)
             )
             metric_aggregates["nel_config"]['failure_fraction'] = \
-                concat_metric_aggregate(metric_aggregates["nel_config"]['failure_fraction'],
+                concat_metric_aggregate_dataframe(metric_aggregates["nel_config"]['failure_fraction'],
                                         nel_config_next['failure_fraction']
                                         )
             metric_aggregates["nel_config"]['success_fraction'] = \
-                concat_metric_aggregate(metric_aggregates["nel_config"]['success_fraction'],
+                concat_metric_aggregate_dataframe(metric_aggregates["nel_config"]['success_fraction'],
                                         nel_config_next['success_fraction']
                                         )
             metric_aggregates["nel_config"]['include_subdomains'] = \
-                concat_metric_aggregate(metric_aggregates["nel_config"]['include_subdomains'],
+                concat_metric_aggregate_dataframe(metric_aggregates["nel_config"]['include_subdomains'],
                                         nel_config_next['include_subdomains']
                                         )
             metric_aggregates["nel_config"]['max_age'] = \
-                concat_metric_aggregate(metric_aggregates["nel_config"]['max_age'], nel_config_next['max_age'])
+                concat_metric_aggregate_dataframe(metric_aggregates["nel_config"]['max_age'], nel_config_next['max_age'])
 
             # Resource configuration data
-            nel_analysis.update_nel_resource_config(
+            nel_analysis.nel_resource_config_variability(
                 input_file,
                 year,
                 month,
@@ -180,8 +180,26 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path],
                 year,
                 month,
                 reset_psl_file(psl_IO))
-            metric_aggregates["nel_monitored_resource_type"] = concat_metric_aggregate(
+            metric_aggregates["nel_monitored_resource_type"] = concat_metric_aggregate_dataframe(
                 metric_aggregates["nel_monitored_resource_type"], nel_monitored_resource_type_next)
+
+            # Popular domains - deployment data
+            nel_analysis.nel_popular_deployment(input_file, year, month)
+
+            # Popular domains - collector provider usage
+            nel_popular_collector_providers = nel_analysis.nel_popular_collector_provider_usage(
+                input_file,
+                metric_aggregates["nel_popular_collector_providers"],
+                year,
+                month,
+                reset_psl_file(psl_IO))
+            metric_aggregates["nel_popular_collector_providers"] = concat_metric_aggregate_series(
+                metric_aggregates["nel_popular_collector_providers"],
+                nel_popular_collector_providers
+            )
+
+            # Popular domains - popular config
+            nel_analysis.nel_popular_resource_config(input_file, year, month)
 
             gc.collect()
 
@@ -207,11 +225,18 @@ def reset_psl_file(psl_file: io.StringIO) -> io.StringIO:
     return psl_file
 
 
-def concat_metric_aggregate(aggregated: DataFrame, to_aggregate: DataFrame):
-    if len(aggregated) == 0:
+def concat_metric_aggregate_dataframe(aggregated: DataFrame, to_aggregate: DataFrame):
+    if len(aggregated) == 0 and to_aggregate is not None:
         return to_aggregate
     else:
         return pd.concat([aggregated, to_aggregate])
+
+
+def concat_metric_aggregate_series(aggregated: Series, to_aggregate: Series):
+    if len(aggregated) == 0 and to_aggregate is not None:
+        return Series(to_aggregate.unique())
+    else:
+        return Series(pd.concat([aggregated, to_aggregate]).unique())
 
 
 if __name__ == "__main__":
