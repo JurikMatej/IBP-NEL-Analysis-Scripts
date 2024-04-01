@@ -48,9 +48,6 @@ def nel_deployment(input_file: Path, date: str):
     total_crawled_resources_with_correct_nel = data['total_crawled_resources_with_correct_nel'][0]
     total_crawled_domains_with_correct_nel = data['total_crawled_domains_with_correct_nel'][0]
 
-    # TODO do not forget to add this col in the visualize step
-    # nel_percentage = np.uint32(total_nel_domains) / np.uint32(total_domains) * 100
-
     result = DataFrame({
         "date": [date],
         "total_crawled_resources": [total_crawled_resources],
