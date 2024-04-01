@@ -51,7 +51,7 @@ description:    Query the Google Cloud Platform's BigQuery for HTTP Archive data
                     Also, the name of the config file is configurable within the config of this script.
 
 purpose:        Get raw HTTP Archive data from the Google Cloud and store it as an Apache Parquet file in order
-                for it to be available locally for further processing and analysis.
+                for it to be available locally for further processing, analysis and visualization.
                 (IMPORTANT: do not modify the downloaded data itself - additional queries cost money)
 """
 

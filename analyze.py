@@ -2,9 +2,12 @@
 """
 author:         Matej Jurík <xjurik12@stud.fit.vutbr.cz>
 
-description:    Descriptive...
+description:    Analyzes the downloaded raw HTTP Archive data from the Google Cloud BigQuery.
+                This 'analyze' script goes through all available raw NEL data files and processes
+                each into a set of organized, metric oriented data frames and then saves them in another
+                location to be later used in the 'Visualize' step.
 
-purpose:        Purposeful...
+purpose:        Prepares the downloaded raw NEL data to be later visualized by per-metric visualization scripts.
 """
 
 import io
