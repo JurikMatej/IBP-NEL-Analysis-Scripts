@@ -10,7 +10,6 @@ from pandas import DataFrame, Series
 from pathlib import Path
 
 from src import psl_utils
-from src import metric_utils
 
 ANALYIS_OUTPUT_DIR = "metric_data/"
 
@@ -22,8 +21,6 @@ METRIC LEGEND: (see docs/data-contract)
     bX = base metric number X
     cX (bY) = custom metric number X - fulfills Y from base metric b
 """
-
-# TODO specify each metric result dtypes to persist the data with !!!
 
 
 def nel_deployment(input_file: Path, date: str):
@@ -357,6 +354,13 @@ def nel_resource_config_variability(input_file: Path, date: str):
     result.set_index('date', inplace=True)
     result.reset_index(inplace=True)
 
+    # Cast to category where convenient
+    result['date'] = result['date'].astype("category")
+    result['nel_include_subdomains'] = result['nel_include_subdomains'].astype("category")
+    result['nel_failure_fraction'] = result['nel_failure_fraction'].astype("category")
+    result['nel_success_fraction'] = result['nel_success_fraction'].astype("category")
+    result['nel_max_age'] = result['nel_max_age'].astype("category")
+
     # Save the result
     output_dir = Path(f"{ANALYIS_OUTPUT_DIR}/nel_resource_config_variability")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -375,6 +379,12 @@ def nel_monitored_resource_types(input_file: Path, date: str):
     del data
     gc.collect()
 
+    # Cast to convenient types
+    result['date'] = result['date'].astype("category")
+    result['url_domain'] = result['url_domain'].astype("category")
+    result['type'] = result['type'].astype("category")
+    result['count'] = result['count'].astype("UInt32")
+
     # Save the result
     output_dir = Path(f"{ANALYIS_OUTPUT_DIR}/nel_monitored_resource_types")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -383,38 +393,38 @@ def nel_monitored_resource_types(input_file: Path, date: str):
 
 
 # TODO use during the visualize phase - this can be computed from the already existing resource config metric data
-def nel_popular_resource_config(input_file: Path, year: str, month: str):
-    """PREPARES DATA FOR: c9c"""
-    data_columns_config_per_url_domain = [
-        'url_domain', 'nel_include_subdomains', 'nel_failure_fraction', 'nel_success_fraction', 'nel_max_age'
-    ]
-    data_columns_config_settings = [
-        'nel_include_subdomains', 'nel_failure_fraction', 'nel_success_fraction', 'nel_max_age'
-    ]
-
-    nel_data = pd.read_parquet(input_file, columns=data_columns_config_per_url_domain)
-    tranco_list = metric_utils.load_tranco_list_for_current_month(year, month)
-
-    data = nel_data[nel_data['url_domain'].isin(tranco_list['popular_domain_name'])].copy()
-    data['resources_with_this_config'] = 1
-
-    # Count config variation occurrences in the resources hosted on popular domains (group by unique url_domain config)
-    result = data.groupby(data_columns_config_per_url_domain, observed=True).agg({
-        'resources_with_this_config': 'count'
-    })
-
-    result.reset_index(inplace=True)
-
-    # Among the config variations for all popular domains found, count the config variation occurrences
-    # (group by unique config - this time count the domains using each unique config variation)
-    result = result.groupby(data_columns_config_settings, observed=True, as_index=False).agg(
-        domains_using_this_config=('url_domain', 'count'))
-
-    result.sort_values(by='domains_using_this_config', ascending=False, inplace=True)
-
-    # Add date as the leftmost column
-    result['date'] = f"{year}-{month}"
-    result.set_index('date', inplace=True)
-    result.reset_index(inplace=True)
-
-    # DO NOTHING - this function is to be removed when rewritten into the visualize phase script
+# def nel_popular_resource_config(input_file: Path, year: str, month: str):
+#     """PREPARES DATA FOR: c9c"""
+#     data_columns_config_per_url_domain = [
+#         'url_domain', 'nel_include_subdomains', 'nel_failure_fraction', 'nel_success_fraction', 'nel_max_age'
+#     ]
+#     data_columns_config_settings = [
+#         'nel_include_subdomains', 'nel_failure_fraction', 'nel_success_fraction', 'nel_max_age'
+#     ]
+#
+#     nel_data = pd.read_parquet(input_file, columns=data_columns_config_per_url_domain)
+#     tranco_list = metric_utils.load_tranco_list_for_current_month(year, month)
+#
+#     data = nel_data[nel_data['url_domain'].isin(tranco_list['popular_domain_name'])].copy()
+#     data['resources_with_this_config'] = 1
+#
+#     # Count config variation occurrences in the resources hosted on popular domains (group by unique url_domain config)
+#     result = data.groupby(data_columns_config_per_url_domain, observed=True).agg({
+#         'resources_with_this_config': 'count'
+#     })
+#
+#     result.reset_index(inplace=True)
+#
+#     # Among the config variations for all popular domains found, count the config variation occurrences
+#     # (group by unique config - this time count the domains using each unique config variation)
+#     result = result.groupby(data_columns_config_settings, observed=True, as_index=False).agg(
+#         domains_using_this_config=('url_domain', 'count'))
+#
+#     result.sort_values(by='domains_using_this_config', ascending=False, inplace=True)
+#
+#     # Add date as the leftmost column
+#     result['date'] = f"{year}-{month}"
+#     result.set_index('date', inplace=True)
+#     result.reset_index(inplace=True)
+#
+#     # DO NOTHING - this function is to be removed when rewritten into the visualize phase script
