@@ -112,98 +112,31 @@ All data files must be stored in the same directory.
 
 ### Metrics
 
-#### NOTES:
-
-* eTLD inclusion (merging historic, searching, parsing eTLD+1) implemented - publicsuffix2 library used (license OK) - TODO REVISE on the comments
-* analysis tested on the first 2 metrics - got better results
-* profiled the analysis - it takes TOO LONG
-* came up with what final steps we could take to finish this Bachelor Thesis 
-
 #### Previous analysis (LPolcak, KJerabek) metrics (base)
 
-1. Unique domains queried within each year and those responding with valid NEL headers
+1. Unique domains queried within each month and those responding with valid NEL headers
 
-      ![yearly_nel_deployment.png](yearly_nel_deployment.png)
-      ![yearly_nel_deployment_new.png](yearly_nel_deployment_new.png)
+      ![yearly_nel_deployment.png](nel_deployment.png)
 
-      Better results achieved - new NEL domains discovered:
-      - 2019 = 15 new NEL domains
-      - 2020 = 121 new NEL domains
-      - 2021 = 3 826 new NEL domains
-      - ... the rest not tested to save computing budget (new ideas for SQL enhancements came up)
-
-
-2. The count of NEL collector providers, the top four NEL collector providers for each analyzed year, and their share
+2. The count of NEL collector providers, the top four NEL collector providers for each analyzed month, and their share
    over the analyzed period
 
       **_IMPORTANT NOTE:_** As in the Kamil Jerabek's script (python notebook for collector provider metric),
       I only use the primary collector provider = `rt_collectors[0]` to count, parse eTLD+1 and sort providers.
 
-      **_NOTE: use this graph with logarithmic Y to display this metric over all months_**  
-      
-      <img alt="graph-idea-01.png" height="500" width="750" src="graph-idea-01.png"/>
-      
-      **_NOTE: or this one to avoid logarithmic Y_**  
-      
-      <img alt="graph-idea-02.png" height="550" width="750" src="graph-idea-02.png"/>
-
-      **_NOTE: or this one for different use case_**
-
-      <img alt="graph-idea-03.png" height="400" width="484" src="graph-idea-03.png"/>
-   
-      **_NOTE: or this one for different use case_**
- 
-      <img alt="graph-idea-04.png" height="400" width="750" src="graph-idea-04.png"/>
-
-     -------------------------
-     -------------------------
-  
-     ![nel_collector_providers.png](nel_collector_providers.png)
-     ![nel_collector_providers_new.png](nel_collector_providers_new.png)
-
-     - PER YEAR DEBUG RESULTS:
-       1. NEL domains for 2019 = 370; 0 new collectors discovered
-    
-          ![nel_collector_providers_2019.png](nel_collector_providers_2019.png)
-    
-          ...and the rest (share < 1)
-    
-       -------------------------
-       -------------------------
-    
-       2. NEL domains for 2019 = 109 604; 5 new collectors discovered
-       
-          ![nel_collector_providers_2020.png](nel_collector_providers_2020.png)
-       
-          ...and the rest (share < 16)
-    
-       -------------------------
-       -------------------------
-    
-       3. NEL domains for 2019 = 1 008 105; 8 new collectors discovered
-       
-          ![nel_collector_providers_2020.png](nel_collector_providers_2021.png)
-       
-          ...and the rest (share < 54)
-
+      ![nel_collector_providers.png](nel_collector_providers.png)
 
 3. The number of NEL collector providers that are employed by a given number of domains (Number of collectors employed
-   by 1, 2, 3-10, 11-100, 101-1K and more domains).
-   
-   - TODO: Not implemented yet 
-   - TODO: Count the collectors by eTLD+1 ?   
+   by 1, 2, 3-10, 11-100, 101-1K and more domains)
 
       ![collectors_by_domain_employment.png](collectors_by_domain_employment.png)
 
-
 4. NEL configuration over time 
    - Divide the 4 NEL configuration fields (max_age, succ_rate, fail_rate, incl_subd) 
-   into classes of used value intervals and compute yearly distribution into those classes
+   into classes of used value intervals and compute monthly distribution into those classes
 
-   - TODO: Not implemented yet
-   - Example:
-       ![nel_config_over_time_example.png](nel_config_over_time_example.png)
-
+      - Example:
+        ![nel_config_over_time_example.png](nel_config_over_time_example.png)
 
 #### New analysis metrics (xjurik12 proposals, ordered as they could be presented)
 

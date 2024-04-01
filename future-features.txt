@@ -1,13 +1,2 @@
-* Take input describing what to customize
-    1. A set of domains to download NEL data for and analyze
-    2.
-
-* Analysis - more metrics
+* Analysis - more metric data
     1. Most common sub-webpage keywords (/login, /home) that are monitored by NEL
-    2.
-
-* Real Time Analysis - more metrics
-    1. Per-domain usage of NEL monitoring in % (web_page_with_nel / web_page_total * 100)
-    2.
-
-
