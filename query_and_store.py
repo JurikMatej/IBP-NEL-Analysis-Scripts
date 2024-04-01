@@ -40,9 +40,7 @@ description:    Query the Google Cloud Platform's BigQuery for HTTP Archive data
                                   "httparchive.summary_requests.2018_09_15_mobile"
                                 ],
 
-                                "processed_output": "nel_data_2018_09",
-
-                                "public_suffix_list": ""
+                                "processed_output": "nel_data_2018_09"
                             },
                             {
                             ...
@@ -50,7 +48,6 @@ description:    Query the Google Cloud Platform's BigQuery for HTTP Archive data
                             ...
                         ]
                     Where each object in the global array represents an entry to download = monthly NEL data.
-                    The "public_suffix_list" field is optional (TODO still to be defined).
                     Also, the name of the config file is configurable within the config of this script.
 
 purpose:        Get raw HTTP Archive data from the Google Cloud and store it as an Apache Parquet file in order
