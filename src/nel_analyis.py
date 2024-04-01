@@ -23,7 +23,7 @@ METRIC LEGEND: (see docs/data-contract)
     cX (bY) = custom metric number X - fulfills Y from base metric b
 """
 
-# TODO specify each metric result dtypes to persist the data with
+# TODO specify each metric result dtypes to persist the data with !!!
 
 
 def nel_deployment(input_file: Path, date: str):
@@ -99,13 +99,15 @@ def nel_domain_resource_monitoring_stats(input_file: Path, date: str):
 
 
 def nel_collector_provider_usage(input_file: Path, aggregated_providers: np.ndarray, date: str,
-                                 used_psl: StringIO) -> np.ndarray:
+                                 used_psl: StringIO | None) -> np.ndarray:
     """PREPARES DATA FOR: c1, c2 (b2 & b3), c4, c5"""
 
-    # TODO use the used_psl to parse collector names instead of using the rt_collectors_registrable col
-    data = pd.read_parquet(input_file,
-                           columns=['url_domain', 'rt_collectors_registrable'])
+    if used_psl is None:
+        used_columns = ['url_domain', 'rt_collectors_registrable']
+    else:
+        used_columns = ['url_domain', 'rt_collectors']
 
+    data = pd.read_parquet(input_file, columns=used_columns)
     collectors_per_url_domain = data.groupby(['url_domain'], observed=True).first()
 
     del data
@@ -113,10 +115,24 @@ def nel_collector_provider_usage(input_file: Path, aggregated_providers: np.ndar
 
     total_url_domains = len(collectors_per_url_domain)
 
+    collectors_column = used_columns[1]
+    # In case the argument used_psl was provided, map each collector domain name into it's registrable domain name
+    if used_psl is not None:
+        unique_fullname_domains = collectors_per_url_domain[collectors_column].explode().dropna().unique()
+        unique_registrable_domains = np.asarray(
+            [psl_utils.get_sld_from_custom_psl(domain, used_psl) for domain in unique_fullname_domains]
+        )
+        registrable_domain_map = dict(zip(unique_fullname_domains, unique_registrable_domains))
+
+        collectors_per_url_domain[collectors_column] = collectors_per_url_domain[collectors_column].map(
+            lambda collectors:
+                [registrable_domain_map[domain_name] for domain_name in collectors]
+        )
+
     all_providers_so_far = Series(
         np.append(
             aggregated_providers,
-            collectors_per_url_domain['rt_collectors_registrable'].explode().unique()
+            collectors_per_url_domain[collectors_column].explode().unique()
         )
     ).dropna().unique()
 
@@ -125,17 +141,17 @@ def nel_collector_provider_usage(input_file: Path, aggregated_providers: np.ndar
         "providers": all_providers_so_far
     })
 
-    collectors_per_url_domain['primary_collectors'] = collectors_per_url_domain['rt_collectors_registrable'].map(
+    collectors_per_url_domain['primary_collectors'] = collectors_per_url_domain[collectors_column].map(
         lambda collectors: collectors[0] if len(collectors) > 0 else None
     )
-    collectors_per_url_domain['secondary_collectors'] = collectors_per_url_domain['rt_collectors_registrable'].map(
+    collectors_per_url_domain['secondary_collectors'] = collectors_per_url_domain[collectors_column].map(
         lambda collectors: collectors[1] if len(collectors) > 1 else None
     )
-    collectors_per_url_domain['fallback_collectors'] = collectors_per_url_domain['rt_collectors_registrable'].map(
+    collectors_per_url_domain['fallback_collectors'] = collectors_per_url_domain[collectors_column].map(
         lambda collectors: collectors[2:] if len(collectors) > 2 else None
     )
 
-    collectors_per_url_domain = collectors_per_url_domain.drop(columns=['rt_collectors_registrable'])
+    collectors_per_url_domain = collectors_per_url_domain.drop(columns=[collectors_column])
 
     collectors_per_url_domain.dropna(inplace=True, subset=['primary_collectors'])
     collectors_per_url_domain.reset_index(inplace=True)

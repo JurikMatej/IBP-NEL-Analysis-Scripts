@@ -32,6 +32,14 @@ logger = logging.getLogger(__name__)
 NEL_DATA_DIR_PATH = "httparchive_data_raw"
 PSL_DIR_PATH = "public_suffix_lists"
 
+# True:
+#   Use the pre-computed "registrable domain name" columns from BigQuery HttpArchive data (use "data download time" PSL)
+# False:
+#   Parse registrable domain names from domains AD HOC using local files (see PSL_DIR_PATH).
+#   For each NEL data downloaded file -> use PSL from the same date on which the NEL data was crawled by HttpArchive.
+#   e.g.: nel_data_2022_02 = psl_2022_02
+APP_IGNORE_LOCAL_PSL_FILES = False  # Default = False
+
 
 def main():
     nel_data_dir = pathlib.Path(NEL_DATA_DIR_PATH)
@@ -66,44 +74,43 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path])
         month, year = input_file.stem.split("_")[::-1][:2]  # Reverse and take last 2 values
         date = f"{year}-{month}"
 
-        psl = psl_utils.get_psl_for_specific_date(year, month, PSL_DIR_PATH, psl_files)
+        if not APP_IGNORE_LOCAL_PSL_FILES:
+            psl = psl_utils.get_psl_for_specific_date(year, month, PSL_DIR_PATH, psl_files)
 
-        # The used PSL library needs the PSL as file-like type to read from
-        # So to avoid saving temporary files to disk, StringIO() is used
-        with io.StringIO() as psl_IO:
-            psl_IO.write(psl)
+            # The used PSL library needs the PSL as file-like type to read from
+            # So to avoid saving temporary files to disk, StringIO() is used
+            psl_io = io.StringIO()
+            psl_io.write(psl)
+            psl_io.seek(0)
+        else:
+            psl_io = None
 
-            # Deployment data
-            nel_analysis.nel_deployment(input_file, date)
+        # Deployment data
+        nel_analysis.nel_deployment(input_file, date)
 
-            # Domain deployment stats data
-            nel_analysis.nel_domain_resource_monitoring_stats(input_file, date)
+        # Domain deployment stats data
+        nel_analysis.nel_domain_resource_monitoring_stats(input_file, date)
 
-            # Collector data (aggregate unique collector providers throughout the analyzed months)
-            collector_providers_so_far = nel_analysis.nel_collector_provider_usage(input_file,
-                                                                                   collector_providers_so_far,
-                                                                                   date,
-                                                                                   reset_psl_file(psl_IO))
+        # Collector data (aggregate unique collector providers throughout the analyzed months)
+        collector_providers_so_far = \
+            nel_analysis.nel_collector_provider_usage(input_file, collector_providers_so_far, date, psl_io)
 
-            # Domain configuration data
-            nel_analysis.nel_config(input_file, date)
+        # Domain configuration data
+        nel_analysis.nel_config(input_file, date)
 
-            # Resource configuration data
-            nel_analysis.nel_resource_config_variability(input_file, date)
+        # Resource configuration data
+        nel_analysis.nel_resource_config_variability(input_file, date)
 
-            # Resource type data
-            nel_analysis.nel_monitored_resource_types(input_file, date)
+        # Resource type data
+        nel_analysis.nel_monitored_resource_types(input_file, date)
 
-            gc.collect()
+        if psl_io is not None:
+            psl_io.close()
+        gc.collect()
 
         print()
 
     logger.info("Done. Exiting...")
-
-
-def reset_psl_file(psl_file: io.StringIO) -> io.StringIO:
-    psl_file.seek(0)
-    return psl_file
 
 
 if __name__ == "__main__":
