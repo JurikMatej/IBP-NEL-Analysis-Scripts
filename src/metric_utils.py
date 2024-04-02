@@ -2,7 +2,7 @@ import pandas as pd
 from pandas import DataFrame
 
 
-def load_tranco_list_for_current_month(year: str, month: str) -> DataFrame | None:
+def load_tranco_list(year: str, month: str) -> DataFrame | None:
     popular_domain_name_column_idx = 1
 
     try:
