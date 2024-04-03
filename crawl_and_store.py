@@ -4,16 +4,20 @@ import sys
 import logging
 import re
 
+import playwright._impl._errors as playwright_errors
 from playwright.sync_api import sync_playwright, Response
 import pandas as pd
 
 from src import crawling_utils
-from src.classes.CrawledDomainIndexer import CrawledDomainIndexer
 from src.classes.CrawledDomainNelRegistry import CrawledDomainNelRegistry
 
 
-# Constants
-PLAYWRIGHT_GOTO_TIMEOUT = 10_000  # ms
+###############################
+# CONFIGURE THESE BEFORE USE: #
+###############################
+PLAYWRIGHT_GOTO_TIMEOUT = 0  # ms (TODO set to a reasonable number - for now disabled for debugging)
+
+CRAWL_PAGES_PER_DOMAIN = 10
 
 
 # LOGGING
@@ -27,30 +31,23 @@ logger = logging.getLogger(__name__)
 eligible_domains = (pd.read_parquet("analyze_realtime_eligible_domains.parquet", columns=['url_domain'])
                     .reset_index(drop=True))
 
-crawled_domains_indexer = CrawledDomainIndexer(0)
+# crawled_domains_indexer = CrawledDomainIndexer()
 result_registry = CrawledDomainNelRegistry()
 
 
-def response_intercept(response: Response):
-    global eligible_domains, crawled_domains_indexer, result_registry
-
-    domain = eligible_domains.iloc[crawled_domains_indexer.get_index()]
-    domain_name = domain['url_domain']
-
+def response_intercept(response: Response, domain_name: str):
     url_domain_pattern = re.compile(fr"https?://({domain_name}/)")
+
     if url_domain_pattern.match(response.url):
-        # TODO insert every URL only once
-        result_registry.insert(domain_name,
-                               response.url,
-                               response.header_values('Nel'),
-                               response.header_value('Report-To'))
+        # Process only resources originating from the crawled domain itself
+        result_registry.insert(domain_name, response)
 
 
 def main():
-    global eligible_domains, crawled_domains_indexer, result_registry
+    global eligible_domains, result_registry  # , crawled_domains_indexer
 
-    test_eligible_domains = eligible_domains[(eligible_domains.index > 1040) & (eligible_domains.index < 1042)]
-    crawled_domains_indexer.set_index(test_eligible_domains.index[0])
+    test_eligible_domains = eligible_domains[(eligible_domains.index > 3043) & (eligible_domains.index < 3046)]
+    # crawled_domains_indexer.set_index(test_eligible_domains.index[0])
 
     with sync_playwright() as pw:
         chromium = pw.chromium
@@ -58,32 +55,62 @@ def main():
         ctx = browser.new_context()
 
         page = ctx.new_page()
-        page.on("response", response_intercept)
 
         for domain in test_eligible_domains['url_domain']:
             link_queue = []
             domain_link = f"https://{domain}/"
-            visited_links = [domain_link]
+
+            # Prepare to intercept responses for current domain
+            page.on("response", lambda response: response_intercept(response, domain))
 
             # First request to a domain
-            page.goto(domain_link, timeout=PLAYWRIGHT_GOTO_TIMEOUT)
+            try:
+                page.goto(domain_link, timeout=PLAYWRIGHT_GOTO_TIMEOUT)
+
+            except playwright_errors.TimeoutError:
+                logger.warning(f"URL {domain_link} timed out")
+
+            except playwright_errors.Error as error:
+                logger.warning(f"URL {domain_link} could not be retrieved: {error.name} | {error.message}")
+
+            visited_links = [domain_link]
             link_queue = crawling_utils.update_link_queue(link_queue, visited_links, domain, page)
 
             while len(link_queue) > 0:
                 next_link = link_queue.pop(0)
+
+                # All subsequent requests to sub-pages
+                try:
+                    page.goto(domain_link, timeout=PLAYWRIGHT_GOTO_TIMEOUT)
+
+                except playwright_errors.TimeoutError:
+                    logger.warning(f"URL {domain_link} timed out")
+
+                except playwright_errors.Error as error:
+                    logger.warning(f"URL {domain_link} could not be retrieved: {error.name} | {error.message}")
+
                 visited_links.append(next_link)
+                if len(visited_links) >= CRAWL_PAGES_PER_DOMAIN:
+                    break  # Onto the next domain
 
-                page.goto(next_link, timeout=PLAYWRIGHT_GOTO_TIMEOUT)
                 link_queue = crawling_utils.update_link_queue(link_queue, visited_links, domain, page)
-
-            crawled_domains_indexer.next_index()
 
         ctx.close()
         browser.close()
 
     # TODO process results and store in the same way HttpArchive metrics are made
+    #   url_domain_hosted_resources_with_nel
+    #   url_domain_monitored_resources_ratio
+    #   total_crawled_domains = len(partitioned_domains)
+    #   total_crawled_resources_with_nel (incorrect + correct)
+    #   total_crawled_domains_with_nel (incorrect + correct)
+    #   total_crawled_resources_with_correct_nel
+    #   total_crawled_domains_with_correct_nel
+    #   (filter to only correct NEL)
     result = result_registry.get_content()
-    print()
+    result.to_html("test.html")
+
+    logger.info("All done. Exiting...")
 
 
 if __name__ == '__main__':
