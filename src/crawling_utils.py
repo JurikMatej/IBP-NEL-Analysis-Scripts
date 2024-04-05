@@ -46,8 +46,8 @@ def __relative_to_absolute_link(link: str, current_domain_name: str) -> str:
     return result
 
 
-def parse_content_type(content_type_header: str) -> str | None:
-    if content_type_header.strip() == "":
+def parse_content_type(content_type_header: str | None) -> str:
+    if content_type_header is None or content_type_header.strip() == "":
         return ""
 
     ct_pattern = re.compile(r"^.+/(.+);",)  # TODO FIX - Relies on trailing ';' char
@@ -63,13 +63,13 @@ NelHeaders = namedtuple("NelHeaders",
 RtHeaders = namedtuple("RtHeaders", ['group', 'endpoints'])
 
 
-def parse_nel_header(nel_header: str) -> NelHeaders:
-    if nel_header.strip() == "":
+def parse_nel_header(nel_header: str | None) -> NelHeaders:
+    if nel_header is None or nel_header.strip() == "":
         return NelHeaders(*([None] * 5))  # All fields = None
 
     ma_ptrn = re.compile(r".*max_age[\"\']\s*:\s*([0-9]+)")
     ma_match = ma_ptrn.search(nel_header)
-    ma = ma_match.group(1) if ma_match else ""
+    ma = ma_match.group(1) if ma_match else None
 
     ff_ptrn = re.compile(r".*failure[_]fraction[\"\']\s*:\s*([0-9.]+)")
     ff_match = ff_ptrn.search(nel_header)
@@ -93,13 +93,13 @@ def parse_nel_header(nel_header: str) -> NelHeaders:
 
     rt_ptrn = re.compile(r".*report_to[\"\']\s*:\s*[\"\'](.+?)[\"\']")
     rt_match = rt_ptrn.search(nel_header)
-    rt = rt_match.group(1) if rt_match else ""
+    rt = rt_match.group(1) if rt_match else None
 
     return NelHeaders(ma, ff, sf, inc_subd, rt)
 
 
-def parse_rt_header(rt_header: str) -> RtHeaders:
-    if rt_header.strip() == "":
+def parse_rt_header(rt_header: str | None) -> RtHeaders:
+    if rt_header is None or rt_header.strip() == "":
         return RtHeaders(None, [])  # Missing values
 
     grp_ptrn = re.compile(r".*group[\"\']\s*:\s*[\"\'](.+?)[\"\']")

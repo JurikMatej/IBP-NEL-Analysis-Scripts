@@ -46,7 +46,7 @@ def response_intercept(response: Response, domain_name: str):
 def main():
     global eligible_domains, result_registry  # , crawled_domains_indexer
 
-    test_eligible_domains = eligible_domains[(eligible_domains.index > 3043) & (eligible_domains.index < 3046)]
+    test_eligible_domains = eligible_domains[(eligible_domains.index > 3040) & (eligible_domains.index < 3044)]
     # crawled_domains_indexer.set_index(test_eligible_domains.index[0])
 
     with sync_playwright() as pw:
@@ -98,17 +98,7 @@ def main():
         ctx.close()
         browser.close()
 
-    # TODO process results and store in the same way HttpArchive metrics are made
-    #   url_domain_hosted_resources_with_nel
-    #   url_domain_monitored_resources_ratio
-    #   total_crawled_domains = len(partitioned_domains)
-    #   total_crawled_resources_with_nel (incorrect + correct)
-    #   total_crawled_domains_with_nel (incorrect + correct)
-    #   total_crawled_resources_with_correct_nel
-    #   total_crawled_domains_with_correct_nel
-    #   (filter to only correct NEL)
-    result = result_registry.get_content()
-    result.to_html("test.html")
+    result_registry.save("test.html")
 
     logger.info("All done. Exiting...")
 
