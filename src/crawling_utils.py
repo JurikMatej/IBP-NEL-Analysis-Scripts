@@ -4,6 +4,12 @@ from collections import namedtuple
 from playwright.sync_api import Page
 
 
+NelHeaders = namedtuple("NelHeaders",
+                        ['max_age', 'failure_fraction', 'success_fraction', 'include_subdomains', 'report_to']
+                        )
+RtHeaders = namedtuple("RtHeaders", ['group', 'endpoints'])
+
+
 def update_link_queue(link_queue: List[str], visited_links: List[str], current_domain_name: str,
                       page: Page) -> List[str]:
     new_unique_links = _get_unique_page_links(page)
@@ -63,7 +69,6 @@ def parse_content_type(content_type_header: str | None) -> str:
         * video
         * xml
     """
-
     if content_type_header is None or content_type_header.strip() == "":
         return ""
 
@@ -96,6 +101,7 @@ def _content_type_to_httparchive_type(category, specific):
             return specific
         elif specific == 'javascript':
             return 'script'
+
         return category
 
     # Lastly, if the category is any of these, return only the category name
@@ -104,12 +110,6 @@ def _content_type_to_httparchive_type(category, specific):
 
     # Anything else defaults to 'other' for now
     return 'other'
-
-
-NelHeaders = namedtuple("NelHeaders",
-                        ['max_age', 'failure_fraction', 'success_fraction', 'include_subdomains', 'report_to']
-                        )
-RtHeaders = namedtuple("RtHeaders", ['group', 'endpoints'])
 
 
 def parse_nel_header(nel_header: str | None) -> NelHeaders:
