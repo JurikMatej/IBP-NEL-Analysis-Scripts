@@ -47,14 +47,63 @@ def __relative_to_absolute_link(link: str, current_domain_name: str) -> str:
 
 
 def parse_content_type(content_type_header: str | None) -> str:
+    """
+    This method does not return the real parsed values from content type headers. Rather, it tries to map
+    received content types to HTTPArchive supported 'type' column values found during earlier analysis.
+
+    HTTPArchive supported types so far:
+        * audio
+        * css
+        * font
+        * html
+        * image
+        * other
+        * script
+        * text
+        * video
+        * xml
+    """
+
     if content_type_header is None or content_type_header.strip() == "":
         return ""
 
-    ct_pattern = re.compile(r"^.+/(.+);",)  # TODO FIX - Relies on trailing ';' char
-    match = ct_pattern.search(content_type_header)
-    if match:
-        return match.group(1)
-    return ""
+    if ';' in content_type_header:
+        parsed = content_type_header.split(';')[0].strip()
+    else:
+        parsed = content_type_header.strip()
+
+    if parsed.count('/') > 1:
+        return ""
+
+    category, specific = parsed.split('/')
+
+    return _content_type_to_httparchive_type(category, specific)
+
+
+def _content_type_to_httparchive_type(category, specific):
+    # Override specific application types or default to 'other'
+    if category == 'application':
+        if specific.startswith('xml'):
+            return 'xml'
+        if specific == 'javascript':
+            return 'script'
+
+        return 'other'
+
+    # Override specific text types or default to 'text'
+    if category == 'text':
+        if specific in ['css', 'html']:
+            return specific
+        elif specific == 'javascript':
+            return 'script'
+        return category
+
+    # Lastly, if the category is any of these, return only the category name
+    if category in ['video', 'audio', 'font', 'image']:
+        return category
+
+    # Anything else defaults to 'other' for now
+    return 'other'
 
 
 NelHeaders = namedtuple("NelHeaders",
