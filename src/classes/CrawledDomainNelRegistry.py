@@ -137,7 +137,7 @@ class CrawledDomainNelRegistry(object):
         )
 
         self._data['total_crawled_resources'] = self._total_crawled_resources
-        self._data['total_crawled_domains'] = self._data['url_domain'].unique()
+        self._data['total_crawled_domains'] = len(self._data['url_domain'].unique())
 
         self._data['total_crawled_resources_with_nel'] = self._calculate_total_crawled_resources_with_nel()
         self._data['total_crawled_domains_with_nel'] = self._calculate_total_crawled_domains_with_nel()
