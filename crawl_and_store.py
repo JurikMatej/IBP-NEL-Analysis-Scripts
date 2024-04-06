@@ -21,7 +21,7 @@ CRAWL_PAGES_PER_DOMAIN = 10
 
 
 # LOGGING
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG,
+logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format='%(asctime)s:%(levelname)s\t- %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -44,10 +44,9 @@ def response_intercept(response: Response, domain_name: str):
 
 
 def main():
-    global eligible_domains, result_registry  # , crawled_domains_indexer
+    global eligible_domains, result_registry
 
     test_eligible_domains = eligible_domains[(eligible_domains.index > 3040) & (eligible_domains.index < 3044)]
-    # crawled_domains_indexer.set_index(test_eligible_domains.index[0])
 
     with sync_playwright() as pw:
         chromium = pw.chromium

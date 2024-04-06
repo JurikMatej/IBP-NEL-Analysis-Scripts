@@ -69,6 +69,9 @@ def parse_nel_header(nel_header: str | None) -> NelHeaders:
 
     ma_ptrn = re.compile(r".*max_age[\"\']\s*:\s*([0-9]+)")
     ma_match = ma_ptrn.search(nel_header)
+    # If max_age is None, the resource did not return with NEL header
+    # (max age is required without any default value fallback)
+    # Therefore IF max_age is None THEN that resource is NOT NEL-monitored
     ma = ma_match.group(1) if ma_match else None
 
     ff_ptrn = re.compile(r".*failure[_]fraction[\"\']\s*:\s*([0-9.]+)")
