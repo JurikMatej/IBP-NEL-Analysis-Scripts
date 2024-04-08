@@ -56,8 +56,7 @@ class CrawledDomainNelRegistry(object):
         }).astype(CrawledDomainNelRegistry.DF_SCHEMA)
 
     def insert(self, domain_name: str, response_data: ResponseData):
-        given_domain_rows = self._data[self._data['url_domain'] == domain_name]
-        if not given_domain_rows[given_domain_rows['url'] == response_data.url].empty:
+        if response_data.url in self._data['url'].values:
             # Do not process duplicate resources at all
             # Duplicate resources are mostly crawled when loading sub-resources of the currently crawled document
             return
