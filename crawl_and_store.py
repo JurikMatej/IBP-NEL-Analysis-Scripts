@@ -28,7 +28,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 
-async def crawl_task(domain_queue: asyncio.Queue, progressbar: tqdm.tqdm) -> CrawledDomainNelRegistry:
+async def crawl_task(progressbar: tqdm.tqdm) -> CrawledDomainNelRegistry:
     task_registry = CrawledDomainNelRegistry()
 
     async with async_playwright() as pw:
@@ -97,7 +97,6 @@ async def main():
     domains = test_eligible_domains['url_domain']
 
     # Prepare domain name queue for the crawling tasks
-    domain_queue = asyncio.Queue()
     for domain in domains:
         domain_queue.put_nowait(domain)
 
@@ -105,10 +104,10 @@ async def main():
 
     result_registry = CrawledDomainNelRegistry()
 
-    with tqdm.tqdm(total=domain_queue.qsize(), position=1) as progressbar:
+    with tqdm.tqdm(total=len(domains), position=1) as progressbar:
         tasks = []
         for i in range(10):
-            tasks.append(crawl_task(domain_queue, progressbar))
+            tasks.append(crawl_task(progressbar))
 
         try:
             task_registries = await asyncio.gather(*tasks)
@@ -129,4 +128,5 @@ async def main():
 
 
 if __name__ == '__main__':
+    domain_queue: asyncio.Queue = asyncio.Queue()
     asyncio.run(main())

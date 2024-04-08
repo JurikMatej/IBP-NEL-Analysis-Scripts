@@ -41,10 +41,13 @@ class ResponseData:
 
 async def update_link_queue(link_queue: List[str], visited_links: List[str], current_domain_name: str,
                             page: Page) -> List[str]:
-    new_unique_links = await _get_unique_page_links(page)
-    links_to_the_same_domain = _filter_selfpointing_and_external_links(new_unique_links, current_domain_name)
-    valid_links_to_the_same_domain = \
-        _relative_links_to_absolute_links(links_to_the_same_domain, current_domain_name)
+    available_unique_links = await _get_unique_page_links(page)
+    links_to_current_domain = _filter_selfpointing_and_external_links(available_unique_links, current_domain_name)
+
+    unique_document_links = _filter_fragment_and_query_string_links(links_to_current_domain)
+
+    valid_links_to_the_same_domain = _relative_links_to_absolute_links(unique_document_links, current_domain_name)
+
     valid_new_links = list(filter(lambda link: link not in visited_links, valid_links_to_the_same_domain))
 
     link_queue.extend(valid_new_links)
@@ -55,27 +58,43 @@ async def update_link_queue(link_queue: List[str], visited_links: List[str], cur
 
 async def _get_unique_page_links(page: Page) -> List[str]:
     try:
-        all_anchors = await page.locator("css=a").all()
+        all_anchors = await page.eval_on_selector_all("a",
+                                                      "elements => elements.map(element => element.href)")
 
     except playwright_errors.Error:
         logger.warning(f"Page {page.url}: could not extract anchor elements")
         return []
 
-    result = []
-    for a in all_anchors:
-        # If awaiting too long, the timeout can raise exception - disable timeout
-        href = await a.get_attribute("href", timeout=0)
-        if href is not None:
-            result.append(href)
-
-    return list(set(result))
+    return list(set(all_anchors))
 
 
 def _filter_selfpointing_and_external_links(links: List[str], current_domain_name: str) -> List[str]:
     return list(filter(
         lambda link:
-            link.startswith(f"https://{current_domain_name}/") or link.startswith("/"),
+            link.startswith(f"https://{current_domain_name}/")
+            or link.startswith(f"https://www.{current_domain_name}/")
+            or link.startswith("/"),
         links))
+
+
+def _filter_fragment_and_query_string_links(links_to_the_same_domain: List[str]):
+    result = []
+
+    for link in links_to_the_same_domain:
+        query_sign_index = link.find('?')
+        if query_sign_index != -1:
+            link = link[:query_sign_index]
+
+        last_slash_index = link.rfind('/')
+        if last_slash_index != -1:
+            fragment_index = link[last_slash_index + 1:].find('#')
+            if fragment_index != -1:
+                result.append(link[:last_slash_index + fragment_index + 1])
+                continue
+
+        result.append(link)
+
+    return list(set(result))
 
 
 def _relative_links_to_absolute_links(links_to_the_same_domain: List[str], current_domain_name: str) -> List[str]:
