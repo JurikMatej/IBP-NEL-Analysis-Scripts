@@ -4,12 +4,15 @@
     Use to gain insight on how long which metrics take to compute during the analysis run.
 #>
 param (
-    [string]$out = 'analyze.prof',
+    [Parameter(Position=0,mandatory=$true)]
+    [string]$script,
+
+    [string]$out = 'profiling_result.prof',
 
     [bool]$show = $true
 )
 
-python -m cProfile -o $out .\analyze.py
+python -m cProfile -o $out $script
 
 if ($show)
 {
