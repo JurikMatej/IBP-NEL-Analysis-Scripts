@@ -1,18 +1,47 @@
+from dataclasses import dataclass
+
 import re
+import sys
+import logging
 from typing import List
-from collections import namedtuple
-from playwright.sync_api import Page
+from playwright.async_api import Page
+import playwright._impl._errors as playwright_errors
 
 
-NelHeaders = namedtuple("NelHeaders",
-                        ['max_age', 'failure_fraction', 'success_fraction', 'include_subdomains', 'report_to']
-                        )
-RtHeaders = namedtuple("RtHeaders", ['group', 'endpoints'])
+# LOGGING
+logging.basicConfig(stream=sys.stdout, level=logging.INFO,
+                    format='%(asctime)s:%(levelname)s\t- %(message)s')
+logger = logging.getLogger(__name__)
 
 
-def update_link_queue(link_queue: List[str], visited_links: List[str], current_domain_name: str,
-                      page: Page) -> List[str]:
-    new_unique_links = _get_unique_page_links(page)
+DOM_CONTENT_LOAD_TIMEOUT_SECONDS = 5
+
+
+@dataclass
+class RtHeaders:
+    group: str | None
+    endpoints: list[str] | None
+
+
+@dataclass
+class NelHeaders:
+    max_age: str | None
+    failure_fraction: str | None
+    success_fraction: str | None
+    include_subdomains: str | None
+    report_to: str | None
+
+
+@dataclass
+class ResponseData:
+    url: str | None
+    status: int | None
+    headers: dict[str, str] | None
+
+
+async def update_link_queue(link_queue: List[str], visited_links: List[str], current_domain_name: str,
+                            page: Page) -> List[str]:
+    new_unique_links = await _get_unique_page_links(page)
     links_to_the_same_domain = _filter_selfpointing_and_external_links(new_unique_links, current_domain_name)
     valid_links_to_the_same_domain = \
         _relative_links_to_absolute_links(links_to_the_same_domain, current_domain_name)
@@ -24,9 +53,22 @@ def update_link_queue(link_queue: List[str], visited_links: List[str], current_d
     return result
 
 
-def _get_unique_page_links(page: Page) -> List[str]:
-    links = [a.get_attribute("href") for a in page.locator("css=a").all() if a.get_attribute("href") is not None]
-    return list(set(links))
+async def _get_unique_page_links(page: Page) -> List[str]:
+    try:
+        all_anchors = await page.locator("css=a").all()
+
+    except playwright_errors.Error:
+        logger.warning(f"Page {page.url}: could not extract anchor elements")
+        return []
+
+    result = []
+    for a in all_anchors:
+        # If awaiting too long, the timeout can raise exception - disable timeout
+        href = await a.get_attribute("href", timeout=0)
+        if href is not None:
+            result.append(href)
+
+    return list(set(result))
 
 
 def _filter_selfpointing_and_external_links(links: List[str], current_domain_name: str) -> List[str]:

@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 
+import asyncio
+import tqdm
 import sys
 import logging
 import re
 
 import playwright._impl._errors as playwright_errors
-from playwright.sync_api import sync_playwright, Response
+from playwright.async_api import async_playwright
 import pandas as pd
 
 from src import crawling_utils
 from src.classes.CrawledDomainNelRegistry import CrawledDomainNelRegistry
-
+from src.crawling_utils import ResponseData
 
 ###############################
 # CONFIGURE THESE BEFORE USE: #
@@ -26,81 +28,105 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 
-# Globals
-# TODO rewrite to parallel state
-eligible_domains = (pd.read_parquet("analyze_realtime_eligible_domains.parquet", columns=['url_domain'])
-                    .reset_index(drop=True))
+async def crawl_task(domain_queue: asyncio.Queue, progressbar: tqdm.tqdm) -> CrawledDomainNelRegistry:
+    task_registry = CrawledDomainNelRegistry()
 
-# crawled_domains_indexer = CrawledDomainIndexer()
-result_registry = CrawledDomainNelRegistry()
-
-
-def response_intercept(response: Response, domain_name: str):
-    url_domain_pattern = re.compile(fr"https?://({domain_name}/)")
-
-    if url_domain_pattern.match(response.url):
-        # Process only resources originating from the crawled domain itself
-        result_registry.insert(domain_name, response)
-
-
-def main():
-    global eligible_domains, result_registry
-
-    test_eligible_domains = eligible_domains[(eligible_domains.index > 3040) & (eligible_domains.index < 3044)]
-
-    with sync_playwright() as pw:
+    async with async_playwright() as pw:
         chromium = pw.chromium
-        browser = chromium.launch(headless=True)
-        ctx = browser.new_context()
+        browser = await chromium.launch(headless=True)
+        ctx = await browser.new_context()
+        page = await ctx.new_page()
 
-        page = ctx.new_page()
-
-        for domain in test_eligible_domains['url_domain']:
-            link_queue = []
+        while not domain_queue.empty():
+            domain = await domain_queue.get()
             domain_link = f"https://{domain}/"
 
-            # Prepare to intercept responses for current domain
-            page.on("response", lambda response: response_intercept(response, domain))
+            url_domain_pattern = re.compile(fr"https?://({domain}/)")
+            response_dataset = []
 
-            # First request to a domain
-            try:
-                page.goto(domain_link, timeout=PLAYWRIGHT_GOTO_TIMEOUT)
-
-            except playwright_errors.TimeoutError:
-                logger.warning(f"URL {domain_link} timed out")
-
-            except playwright_errors.Error as error:
-                logger.warning(f"URL {domain_link} could not be retrieved: {error.name} | {error.message}")
-
-            visited_links = [domain_link]
-            link_queue = crawling_utils.update_link_queue(link_queue, visited_links, domain, page)
+            visited_links = []
+            link_queue = [domain_link]  # First request to a domain
 
             while len(link_queue) > 0:
-                next_link = link_queue.pop(0)
+                domain_next_link = link_queue.pop(0)
 
-                # All subsequent requests to sub-pages
+                # Prepare to intercept responses for current domain (set the callback for each domain)
+                page.on("response", lambda response: response_dataset.append(
+                    ResponseData(url=response.url, status=response.status, headers=response.headers))
+                )
+
                 try:
-                    page.goto(domain_link, timeout=PLAYWRIGHT_GOTO_TIMEOUT)
+                    await page.goto(domain_next_link, timeout=PLAYWRIGHT_GOTO_TIMEOUT)
 
                 except playwright_errors.TimeoutError:
-                    logger.warning(f"URL {domain_link} timed out")
+                    logger.warning(f"URL {domain_next_link} timed out")
 
                 except playwright_errors.Error as error:
-                    logger.warning(f"URL {domain_link} could not be retrieved: {error.name} | {error.message}")
+                    logger.warning(f"URL {domain_next_link} could not be retrieved: {error.message}")
 
-                visited_links.append(next_link)
-                if len(visited_links) >= CRAWL_PAGES_PER_DOMAIN:
-                    break  # Onto the next domain
+                else:
+                    visited_links.append(domain_next_link)
+                    if len(visited_links) >= CRAWL_PAGES_PER_DOMAIN:
+                        break  # Onto the next domain
 
-                link_queue = crawling_utils.update_link_queue(link_queue, visited_links, domain, page)
+                    link_queue = await crawling_utils.update_link_queue(link_queue, visited_links, domain, page)
 
-        ctx.close()
-        browser.close()
+                    # Add the requested domain link and all it's unique sub-resources to the task registry
+                    for domain_response_data in response_dataset:
+                        # Process only resources originating from the crawled domain itself
+                        if url_domain_pattern.match(domain_response_data.url):
+                            task_registry.insert(domain, domain_response_data)
 
+            # Current domain crawl finish
+            progressbar.update()
+
+        await ctx.close()
+        await browser.close()
+
+        return task_registry
+
+
+async def main():
+    # Load the domains to be crawled
+    logger.info("Reading list of domains to crawl")
+
+    # TODO standardize input file & make it a constant
+    eligible_domains = (pd.read_parquet("analyze_realtime_eligible_domains.parquet", columns=['url_domain'])
+                        .reset_index(drop=True))
+    test_eligible_domains = eligible_domains[(eligible_domains.index > 5000) & (eligible_domains.index < 5011)]
+    domains = test_eligible_domains['url_domain']
+
+    # Prepare domain name queue for the crawling tasks
+    domain_queue = asyncio.Queue()
+    for domain in domains:
+        domain_queue.put_nowait(domain)
+
+    logger.info(f"Beginning to crawl {len(test_eligible_domains)} domains")
+
+    result_registry = CrawledDomainNelRegistry()
+
+    with tqdm.tqdm(total=domain_queue.qsize(), position=1) as progressbar:
+        tasks = []
+        for i in range(10):
+            tasks.append(crawl_task(domain_queue, progressbar))
+
+        try:
+            task_registries = await asyncio.gather(*tasks)
+        except Exception as ex:
+            logger.exception(f"Could not gather crawl task result \n{ex}")
+
+    logger.info("Crawl completed! ...Collecting results")
+    for task_registry in task_registries:
+        result_registry.concat_content(task_registry)
+
+    logger.info("Saving results")
+
+    result_registry.count_totals()
+    result_registry.filter_out_incorrect_nel()
     result_registry.save("test.html")
 
     logger.info("All done. Exiting...")
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())

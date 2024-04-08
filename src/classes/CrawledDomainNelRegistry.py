@@ -1,7 +1,8 @@
+from __future__ import annotations
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
-from playwright.sync_api import Response
+from src.crawling_utils import ResponseData
 
 from src import crawling_utils
 from src.crawling_utils import NelHeaders, RtHeaders
@@ -54,9 +55,9 @@ class CrawledDomainNelRegistry(object):
             'rt_collectors': [],
         }).astype(CrawledDomainNelRegistry.DF_SCHEMA)
 
-    def insert(self, domain_name: str, response: Response):
+    def insert(self, domain_name: str, response_data: ResponseData):
         given_domain_rows = self._data[self._data['url_domain'] == domain_name]
-        if not given_domain_rows[given_domain_rows['url'] == response.url].empty:
+        if not given_domain_rows[given_domain_rows['url'] == response_data.url].empty:
             # Do not process duplicate resources at all
             # Duplicate resources are mostly crawled when loading sub-resources of the currently crawled document
             return
@@ -64,9 +65,9 @@ class CrawledDomainNelRegistry(object):
         # If inserting a new resource (url), increase the number of total (unique) crawled resources
         self._total_crawled_resources += 1
 
-        nel_fields: NelHeaders = crawling_utils.parse_nel_header(response.header_value("Nel"))
-        rt_fields: RtHeaders = crawling_utils.parse_rt_header(response.header_value("Report-To"))
-        content_type = crawling_utils.parse_content_type(response.header_value("Content-Type"))
+        nel_fields: NelHeaders = crawling_utils.parse_nel_header(response_data.headers.get("nel", None))
+        rt_fields: RtHeaders = crawling_utils.parse_rt_header(response_data.headers.get("report-to", None))
+        content_type = crawling_utils.parse_content_type(response_data.headers.get("content-type", None))
 
         # Determine whether the NEL config for the current resource is correct or not
         if nel_fields.report_to is not None and nel_fields.report_to == rt_fields.group:
@@ -78,8 +79,8 @@ class CrawledDomainNelRegistry(object):
 
         new_registry_row = DataFrame({
             "type": [content_type],
-            "status": [response.status],
-            "url": [response.url],
+            "status": [response_data.status],
+            "url": [response_data.url],
             "url_domain": [domain_name],
             'url_domain_hosted_resources': [np.nan],
             'url_domain_hosted_resources_with_nel': [np.nan],
@@ -104,12 +105,27 @@ class CrawledDomainNelRegistry(object):
         else:
             self._data = pd.concat([self._data, new_registry_row])
 
-    def save(self, file_path: str):
-        if self._should_count_totals():
-            self._count_totals()
+    def concat_content(self, other: CrawledDomainNelRegistry):
+        self._total_crawled_resources += other._total_crawled_resources
 
-        # self._registry.to_parquet(file_path)
-        self._data.to_html(file_path)
+        if self._data.empty and not other._data.empty:
+            # Store the other registry if this registry is empty and the other is not
+            self._data = other._data
+
+        elif not self._data.empty and not other._data.empty:
+            # Merge registries if both are not empty
+            self._data = pd.concat([self._data, other._data])
+
+        # Otherwise there is nothing to concat
+
+    def filter_out_incorrect_nel(self):
+        # Keep only the resources with correct NEL
+        self._data.reset_index(drop=True, inplace=True)
+        self._data.drop(
+            self._data[self._data['nel_report_to'].isna()].index,
+            inplace=True)
+
+        self._data.reset_index(drop=True, inplace=True)
 
     def _should_count_totals(self):
         if self._data[[
@@ -126,34 +142,35 @@ class CrawledDomainNelRegistry(object):
             return True
         return False
 
-    def _count_totals(self):
-        self._data['url_domain_hosted_resources'] = self._calculate_url_domain_hosted_resources()
-        self._data['url_domain_hosted_resources_with_nel'] = self._calculate_url_domain_hosted_resources_with_nel()
+    def count_totals(self):
+        if self._should_count_totals():
+            self._data['url_domain_hosted_resources'] = self._calculate_url_domain_hosted_resources()
+            self._data['url_domain_hosted_resources_with_nel'] = self._calculate_url_domain_hosted_resources_with_nel()
 
-        self._data['url_domain_monitored_resources_ratio'] = (
-            self._data['url_domain_hosted_resources_with_nel']
-            / self._data['url_domain_hosted_resources']
-            * 100
-        )
+            self._data['url_domain_monitored_resources_ratio'] = (
+                self._data['url_domain_hosted_resources_with_nel']
+                / self._data['url_domain_hosted_resources']
+                * 100
+            )
 
-        self._data['total_crawled_resources'] = self._total_crawled_resources
-        self._data['total_crawled_domains'] = len(self._data['url_domain'].unique())
+            self._data['total_crawled_resources'] = self._total_crawled_resources
+            self._data['total_crawled_domains'] = len(self._data['url_domain'].unique())
 
-        self._data['total_crawled_resources_with_nel'] = self._calculate_total_crawled_resources_with_nel()
-        self._data['total_crawled_domains_with_nel'] = self._calculate_total_crawled_domains_with_nel()
+            self._data['total_crawled_resources_with_nel'] = self._calculate_total_crawled_resources_with_nel()
+            self._data['total_crawled_domains_with_nel'] = self._calculate_total_crawled_domains_with_nel()
 
-        self._data['total_crawled_resources_with_correct_nel'] = \
-            self._calculate_total_crawled_resources_with_correct_nel()
+            self._data['total_crawled_resources_with_correct_nel'] = \
+                self._calculate_total_crawled_resources_with_correct_nel()
 
-        self._data['total_crawled_domains_with_correct_nel'] = \
-            self._calculate_total_crawled_domains_with_correct_nel()
+            self._data['total_crawled_domains_with_correct_nel'] = \
+                self._calculate_total_crawled_domains_with_correct_nel()
 
     def _calculate_url_domain_hosted_resources(self):
         url_counts_by_domain = self._data.groupby(['url_domain'])['url'].count()
         return self._data['url_domain'].map(url_counts_by_domain)
 
     def _calculate_url_domain_hosted_resources_with_nel(self):
-        url_with_nel_counts_by_domain = self._data.groupby(['url_domain'])['nel_max_age'].count()
+        url_with_nel_counts_by_domain = self._data.groupby(['url_domain'])['nel_max_age'].count()  # None-s do not count
         return self._data['url_domain'].map(url_with_nel_counts_by_domain)
 
     def _calculate_total_crawled_resources_with_nel(self):
@@ -177,3 +194,7 @@ class CrawledDomainNelRegistry(object):
              .sum() > 0)
 
         return 1 if contains_any_correct_nel_resources else 0
+
+    def save(self, file_path: str):
+        # self._registry.to_parquet(file_path)
+        self._data.to_html(file_path)
