@@ -5,6 +5,7 @@ import tqdm
 import sys
 import logging
 import re
+from typing import List
 
 import playwright._impl._errors as playwright_errors
 from playwright.async_api import async_playwright
@@ -17,9 +18,12 @@ from src.crawling_utils import ResponseData
 ###############################
 # CONFIGURE THESE BEFORE USE: #
 ###############################
-PLAYWRIGHT_GOTO_TIMEOUT = 0  # ms (TODO set to a reasonable number - for now disabled for debugging)
+PLAYWRIGHT_GOTO_TIMEOUT = 5000  # ms
 
+CRAWL_DOMAINS_FILEPATH = "analyze_realtime_eligible_domains.parquet"
 CRAWL_PAGES_PER_DOMAIN = 10
+
+CRAWL_ASYNC_WORKERS = 25
 
 
 # LOGGING
@@ -28,7 +32,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 
-async def crawl_task(progressbar: tqdm.tqdm) -> CrawledDomainNelRegistry:
+async def crawl_task(domain_queue: List[str], progressbar: tqdm.tqdm) -> CrawledDomainNelRegistry:
     task_registry = CrawledDomainNelRegistry()
 
     async with async_playwright() as pw:
@@ -37,8 +41,8 @@ async def crawl_task(progressbar: tqdm.tqdm) -> CrawledDomainNelRegistry:
         ctx = await browser.new_context()
         page = await ctx.new_page()
 
-        while not domain_queue.empty():
-            domain = await domain_queue.get()
+        while len(domain_queue) > 0:
+            domain = domain_queue.pop(0)
             domain_link = f"https://{domain}/"
 
             url_domain_pattern = re.compile(fr"https?://({domain}/)")
@@ -56,7 +60,7 @@ async def crawl_task(progressbar: tqdm.tqdm) -> CrawledDomainNelRegistry:
                 )
 
                 try:
-                    await page.goto(domain_next_link, timeout=PLAYWRIGHT_GOTO_TIMEOUT)
+                    await page.goto(domain_next_link, timeout=0)  # PLAYWRIGHT_GOTO_TIMEOUT
 
                 except playwright_errors.TimeoutError:
                     logger.warning(f"URL {domain_next_link} timed out")
@@ -90,24 +94,30 @@ async def main():
     # Load the domains to be crawled
     logger.info("Reading list of domains to crawl")
 
-    # TODO standardize input file & make it a constant
-    eligible_domains = (pd.read_parquet("analyze_realtime_eligible_domains.parquet", columns=['url_domain'])
-                        .reset_index(drop=True))
-    test_eligible_domains = eligible_domains[(eligible_domains.index > 5000) & (eligible_domains.index < 5011)]
-    domains = test_eligible_domains['url_domain']
+    eligible_domains = pd.read_parquet(CRAWL_DOMAINS_FILEPATH, columns=['url_domain']).reset_index(drop=True)
+    domains = eligible_domains[eligible_domains.index < 100]['url_domain'].tolist()
 
-    # Prepare domain name queue for the crawling tasks
-    for domain in domains:
-        domain_queue.put_nowait(domain)
+    # Distribute async workload
+    if len(domains) < CRAWL_ASYNC_WORKERS:
+        domains_per_task = 1
+        tasks_to_create = len(domains)
+    else:
+        domains_per_task = len(domains) // CRAWL_ASYNC_WORKERS
+        tasks_to_create = CRAWL_ASYNC_WORKERS
 
-    logger.info(f"Beginning to crawl {len(test_eligible_domains)} domains")
+    logger.info(f"Beginning to crawl {len(domains)} domains")
 
     result_registry = CrawledDomainNelRegistry()
 
-    with tqdm.tqdm(total=len(domains), position=1) as progressbar:
+    with tqdm.tqdm(total=len(domains)) as progressbar:
         tasks = []
-        for i in range(10):
-            tasks.append(crawl_task(progressbar))
+        for i in range(tasks_to_create):
+            if i != tasks_to_create - 1:
+                # Distribute by partition to tasks
+                tasks.append(crawl_task(domains[i * domains_per_task: (i + 1) * domains_per_task], progressbar))
+            else:
+                # Distribute the rest to the last task
+                tasks.append(crawl_task(domains[i * domains_per_task:], progressbar))
 
         try:
             task_registries = await asyncio.gather(*tasks)
@@ -128,5 +138,7 @@ async def main():
 
 
 if __name__ == '__main__':
-    domain_queue: asyncio.Queue = asyncio.Queue()
-    asyncio.run(main())
+    loop = asyncio.new_event_loop()
+    loop.run_until_complete(main())
+
+    loop.close()

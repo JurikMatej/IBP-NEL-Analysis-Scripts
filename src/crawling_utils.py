@@ -14,9 +14,6 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 
-DOM_CONTENT_LOAD_TIMEOUT_SECONDS = 5
-
-
 @dataclass
 class RtHeaders:
     group: str | None
