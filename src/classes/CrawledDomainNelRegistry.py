@@ -2,10 +2,10 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
-from src.crawling_utils import ResponseData
+from pathlib import Path
 
 from src import crawling_utils
-from src.crawling_utils import NelHeaders, RtHeaders
+from src.crawling_utils import ResponseData, NelHeaders, RtHeaders
 
 
 class CrawledDomainNelRegistry(object):
@@ -194,6 +194,20 @@ class CrawledDomainNelRegistry(object):
 
         return 1 if contains_any_correct_nel_resources else 0
 
-    def save(self, file_path: str):
-        # self._registry.to_parquet(file_path)
-        self._data.to_html(file_path)
+    def save(self, file_path: str | Path):
+        self._data.to_parquet(file_path)
+
+    def save_raw(self, file_path: str | Path):
+        self._data['total_crawled_resources'] = self._total_crawled_resources
+        self._data.to_parquet(file_path)
+
+    @staticmethod
+    def read_raw(file_path: str | Path):
+        raw = pd.read_parquet(file_path).astype(CrawledDomainNelRegistry.DF_SCHEMA)
+
+        result = CrawledDomainNelRegistry()
+        if not raw.empty:
+            result._total_crawled_resources = raw['total_crawled_resources'].values[0]
+            result._data = raw
+
+        return result

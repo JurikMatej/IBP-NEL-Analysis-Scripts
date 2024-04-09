@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+import asyncio
+from io import StringIO
 import re
 import sys
 import logging
@@ -62,7 +64,9 @@ async def _get_unique_page_links(page: Page) -> List[str]:
         logger.warning(f"Page {page.url}: could not extract anchor elements")
         return []
 
-    return list(set(all_anchors))
+    if isinstance(all_anchors, list):
+        return list(set(all_anchors))
+    return []
 
 
 def _filter_selfpointing_and_external_links(links: List[str], current_domain_name: str) -> List[str]:
@@ -221,3 +225,13 @@ def parse_rt_header(rt_header: str | None) -> RtHeaders:
     endpts = endpts_ptrn.findall(rt_header) or []
 
     return RtHeaders(grp, endpts)
+
+
+def log_all_tasks_stack_trace():
+    stack_trace_data = StringIO()
+    active_tasks = asyncio.all_tasks()
+    active_tasks_no = len(active_tasks)
+    for task in active_tasks:
+        task.print_stack(file=stack_trace_data)
+    logger.info(stack_trace_data.getvalue())
+    logger.info(f"Total number of tasks: {active_tasks_no}")

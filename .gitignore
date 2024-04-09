@@ -166,6 +166,7 @@ gcp-secrets/
 httparchive_data/
 httparchive_data_raw/
 httparchive_data_raw_tests/
+crawl_data_raw/
 
 download_config_full.json
 latex_testing.tex
