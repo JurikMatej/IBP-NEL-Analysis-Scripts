@@ -1,7 +1,5 @@
 <#
-    Profile the analyze.py script
-
-    Use to gain insight on how long which metrics take to compute during the analysis run.
+    Profile the provided script
 #>
 param (
     [Parameter(Position=0,mandatory=$true)]

@@ -26,6 +26,13 @@ from src import crawling_utils
 from src.classes.CrawledDomainNelRegistry import CrawledDomainNelRegistry
 from src.crawling_utils import ResponseData
 
+
+# LOGGING
+logging.basicConfig(stream=sys.stdout, level=logging.INFO,
+                    format='\n%(asctime)s:%(levelname)s\t- %(message)s')
+logger = logging.getLogger(__name__)
+
+
 ###############################
 # CONFIGURE THESE BEFORE USE: #
 ###############################
@@ -39,10 +46,12 @@ CRAWL_ASYNC_WORKERS = 20
 CRAWL_ASYNC_WORKER_LIFETIME_WORKLOAD = 20
 
 
-# LOGGING
-logging.basicConfig(stream=sys.stdout, level=logging.INFO,
-                    format='\n%(asctime)s:%(levelname)s\t- %(message)s')
-logger = logging.getLogger(__name__)
+def crash_logger_callback(domain, exception):
+    logger.warning(f"Domain ({domain}) crawl failed: {exception.error}")
+
+
+def noop_logger_callback(_):
+    pass
 
 
 async def crawl_task(domain_queue: List[str], progressbar: tqdm.tqdm):
@@ -50,14 +59,9 @@ async def crawl_task(domain_queue: List[str], progressbar: tqdm.tqdm):
         chromium = pw.chromium
         browser = await chromium.launch(headless=True)  # TODO should launch one chrome and create many contexts ?
         ctx = await browser.new_context()               # TODO should create one context and create many pages ?
-
-        def weberror_callback(e):
-            # logger.warning(f"Web exception occurred (no impact on the crawling process): {e.error}")
-            pass
-        ctx.on("weberror", weberror_callback)
+        ctx.on("weberror", noop_logger_callback)
 
         page = await ctx.new_page()
-        page.on('crash', weberror_callback)
 
         # Disable HTTP cache by enabling routes TODO just a possibility - check whether hinders performance
         # await page.route('**', lambda route: route.continue_())
@@ -78,6 +82,7 @@ async def crawl_task(domain_queue: List[str], progressbar: tqdm.tqdm):
 
             # Prepare to intercept responses for current domain (set the callback for each domain)
             response_dataset = []
+            page.on('crash', lambda ex: crash_logger_callback(domain, ex))
             page.on("response", lambda response: response_dataset.append(
                 ResponseData(url=response.url, status=response.status, headers=response.headers))
             )
@@ -117,7 +122,6 @@ async def crawl_task(domain_queue: List[str], progressbar: tqdm.tqdm):
             # Make sure not to hold on to any redundant data that uses RAM
             await ctx.clear_cookies()
             del domain_registry
-            del response_dataset
             del visited_links
             del link_queue
             gc.collect()
@@ -156,7 +160,9 @@ async def main():
         return
 
     eligible_domains = pd.read_parquet(CRAWL_DOMAINS_LIST_FILEPATH, columns=['url_domain']).reset_index(drop=True)
-    domains = eligible_domains[(eligible_domains.index >= 4000) & (eligible_domains.index < 7000)]['url_domain'].tolist()
+    # domains = \
+    #     eligible_domains[(eligible_domains.index >= 4000) & (eligible_domains.index < 7000)]['url_domain'].tolist()
+    domains = eligible_domains['url_domain'].tolist()
     domain_workload_pool = domain_workload_generator(domains)
 
     logger.info(f"Beginning to crawl {len(domains)} domains")
