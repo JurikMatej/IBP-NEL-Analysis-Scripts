@@ -66,7 +66,7 @@ async def _get_unique_page_links(page: Page) -> List[str]:
         return []
 
     except (TypeError, Exception):
-        # Weird behavior - e.g. all_anchors evaluated as dict()
+        # Weird behavior - e.g. all_anchors evaluated as a list of dicts
         return []
 
 
@@ -129,8 +129,9 @@ def __relative_to_absolute_link(link: str, current_domain_name: str) -> str:
 
 def parse_content_type(content_type_header: str | None) -> str:
     """
-    This method does not return the real parsed values from content type headers. Rather, it tries to map
-    received content types to HTTPArchive supported 'type' column values found during earlier analysis.
+    This method does not return the real parsed values from content type headers.
+    Rather, it tries to map received content types to HTTPArchive supported 'type' column values
+    found during earlier analysis.
 
     HTTPArchive supported types so far:
         * audio
@@ -155,7 +156,17 @@ def parse_content_type(content_type_header: str | None) -> str:
     if parsed.count('/') > 1:
         return ""
 
-    category, specific = parsed.split('/')
+    split = parsed.split('/')
+
+    if len(split) > 1:
+        category = split[0]
+        specific = split[1]
+    elif len(split) == 1:
+        category = split[0]
+        specific = ""
+    else:
+        # Default to nothing
+        return ""
 
     return _content_type_to_httparchive_type(category, specific)
 
