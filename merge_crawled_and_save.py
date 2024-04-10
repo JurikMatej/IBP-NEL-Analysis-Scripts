@@ -16,7 +16,7 @@ from src.classes.CrawledDomainNelRegistry import CrawledDomainNelRegistry
 
 # LOGGING
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
-                    format='\n%(asctime)s:%(levelname)s\t- %(message)s')
+                    format='%(asctime)s:%(levelname)s\t- %(message)s')
 logger = logging.getLogger(__name__)
 
 

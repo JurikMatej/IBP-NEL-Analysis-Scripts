@@ -12,8 +12,6 @@ from pathlib import Path
 from src import psl_utils
 
 
-ANALYSIS_OUTPUT_DIR = "data/metrics/"
-
 RESOURCE_BATCH_SIZE = 50_000_000
 
 
@@ -25,7 +23,7 @@ METRIC LEGEND: (see docs/data-contract)
 """
 
 
-def nel_deployment(input_file: Path, date: str):
+def nel_deployment(input_file: Path, date: str, output_dir: str):
     """PREPARES DATA FOR: c2 (b1)"""
 
     # Read only the first row of the month data file (necessary data is already precomputed)
@@ -64,13 +62,13 @@ def nel_deployment(input_file: Path, date: str):
     gc.collect()
 
     # Save the result
-    output_dir = Path(f"{ANALYSIS_OUTPUT_DIR}/nel_deployment")
+    output_dir = Path(f"{output_dir}/nel_deployment")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     result.to_parquet(os.path.join(output_dir.absolute(), f"{date}.parquet"))
 
 
-def nel_domain_resource_monitoring_stats(input_file: Path, date: str):
+def nel_domain_resource_monitoring_stats(input_file: Path, date: str, output_dir: str):
     """PREPARES DATA FOR: c9a"""
 
     # Load data & group by url_domain right away
@@ -88,14 +86,14 @@ def nel_domain_resource_monitoring_stats(input_file: Path, date: str):
     result.reset_index(inplace=True)
 
     # Save the result
-    output_dir = Path(f"{ANALYSIS_OUTPUT_DIR}/nel_domain_resource_monitoring_stats")
+    output_dir = Path(f"{output_dir}/nel_domain_resource_monitoring_stats")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     result.to_parquet(os.path.join(output_dir.absolute(), f"{date}.parquet"))
 
 
 def nel_collector_provider_usage(input_file: Path, aggregated_providers: np.ndarray, date: str,
-                                 used_psl: StringIO | None) -> np.ndarray:
+                                 used_psl: StringIO | None, output_dir: str) -> np.ndarray:
     """PREPARES DATA FOR: c1, c2 (b2 & b3), c4, c5"""
 
     if used_psl is None:
@@ -190,7 +188,7 @@ def nel_collector_provider_usage(input_file: Path, aggregated_providers: np.ndar
     result.reset_index(inplace=True, drop=True)
 
     # Save the result
-    output_dir = Path(f"{ANALYSIS_OUTPUT_DIR}/nel_collector_provider_usage")
+    output_dir = Path(f"{output_dir}/nel_collector_provider_usage")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     result.to_parquet(os.path.join(output_dir.absolute(), f"{date}.parquet"))
@@ -199,7 +197,7 @@ def nel_collector_provider_usage(input_file: Path, aggregated_providers: np.ndar
     return all_providers_so_far
 
 
-def nel_config(input_file: Path, date: str):
+def nel_config(input_file: Path, date: str, output_dir: str):
     """
     PREPARES DATA FOR: c7
 
@@ -289,7 +287,7 @@ def nel_config(input_file: Path, date: str):
     result_max_age = ma_data.reset_index(drop=True)
 
     # Save the results
-    output_dir = Path(f"{ANALYSIS_OUTPUT_DIR}/nel_config")
+    output_dir = Path(f"{output_dir}/nel_config")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     output_dir_absolute = output_dir.absolute()
@@ -307,7 +305,7 @@ def nel_config(input_file: Path, date: str):
     result_max_age.to_parquet(max_age_output_path)
 
 
-def nel_resource_config_variability(input_file: Path, date: str):
+def nel_resource_config_variability(input_file: Path, date: str, output_dir: str):
     """PREPARES DATA FOR: c6"""
     parquet = pq.ParquetFile(input_file)
     data_batch_generator = parquet.iter_batches(batch_size=RESOURCE_BATCH_SIZE,
@@ -361,13 +359,13 @@ def nel_resource_config_variability(input_file: Path, date: str):
     result['nel_max_age'] = result['nel_max_age'].astype("category")
 
     # Save the result
-    output_dir = Path(f"{ANALYSIS_OUTPUT_DIR}/nel_resource_config_variability")
+    output_dir = Path(f"{output_dir}/nel_resource_config_variability")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     result.to_parquet(os.path.join(output_dir.absolute(), f"{date}.parquet"))
 
 
-def nel_monitored_resource_types(input_file: Path, date: str):
+def nel_monitored_resource_types(input_file: Path, date: str, output_dir: str):
     """PREPARES DATA FOR: c8"""
     data = pd.read_parquet(input_file, columns=['url_domain', 'type'])
 
@@ -385,7 +383,7 @@ def nel_monitored_resource_types(input_file: Path, date: str):
     result['count'] = result['count'].astype("UInt32")
 
     # Save the result
-    output_dir = Path(f"{ANALYSIS_OUTPUT_DIR}/nel_monitored_resource_types")
+    output_dir = Path(f"{output_dir}/nel_monitored_resource_types")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     result.to_parquet(os.path.join(output_dir.absolute(), f"{date}.parquet"))

@@ -38,6 +38,8 @@ logger = logging.getLogger(__name__)
 NEL_DATA_DIR_PATH = "data/httparchive_raw"
 PSL_DIR_PATH = "resources/public_suffix_lists"
 
+ANALYSIS_OUTPUT_DIR = "data/httparchive_metrics/"
+
 # True:
 #   Use the pre-computed "registrable domain name" columns from BigQuery HttpArchive data (use "data download time" PSL)
 # False:
@@ -59,7 +61,7 @@ def main():
         logger.error(f"Please provide at least the current Public Suffix List ({PSL_DIR_PATH}/psl_current.dat)")
         return
 
-    logger.info(f"Analyzing metrics for all files in ---{NEL_DATA_DIR_PATH}---")
+    logger.info(f"Analyzing metrics for all HTTPARCHIVE data files in ---{NEL_DATA_DIR_PATH}---")
     print()
 
     if len(input_files) < 1:
@@ -92,23 +94,24 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path])
             psl_io = None
 
         # Deployment data
-        nel_analysis.nel_deployment(input_file, date)
+        nel_analysis.nel_deployment(input_file, date, ANALYSIS_OUTPUT_DIR)
 
         # Domain deployment stats data
-        nel_analysis.nel_domain_resource_monitoring_stats(input_file, date)
+        nel_analysis.nel_domain_resource_monitoring_stats(input_file, date, ANALYSIS_OUTPUT_DIR)
 
         # Collector data (aggregate unique collector providers throughout the analyzed months)
         collector_providers_so_far = \
-            nel_analysis.nel_collector_provider_usage(input_file, collector_providers_so_far, date, psl_io)
+            nel_analysis.nel_collector_provider_usage(input_file,
+                                                      collector_providers_so_far, date, psl_io, ANALYSIS_OUTPUT_DIR)
 
         # Domain configuration data
-        nel_analysis.nel_config(input_file, date)
+        nel_analysis.nel_config(input_file, date, ANALYSIS_OUTPUT_DIR)
 
         # Resource configuration data
-        nel_analysis.nel_resource_config_variability(input_file, date)
+        nel_analysis.nel_resource_config_variability(input_file, date, ANALYSIS_OUTPUT_DIR)
 
         # Resource type data
-        nel_analysis.nel_monitored_resource_types(input_file, date)
+        nel_analysis.nel_monitored_resource_types(input_file, date, ANALYSIS_OUTPUT_DIR)
 
         if psl_io is not None:
             psl_io.close()

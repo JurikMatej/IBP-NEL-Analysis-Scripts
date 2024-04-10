@@ -1,8 +1,9 @@
 import logging
-import pathlib
 import re
 import sys
+from pathlib import Path
 from typing import List
+
 import publicsuffix2 as psl2
 
 
@@ -27,9 +28,13 @@ def get_sld_from_custom_psl(domain, custom_psl):
     return psl2.get_sld(domain, custom_psl, wildcard=True, idna=True, strict=False)  # Using defaults here
 
 
-def get_psl_for_specific_date(year: str, month: str, psl_dir: str, psl_files: List[pathlib.Path]) -> str:
-    current_psl_path = pathlib.Path(f"{psl_dir}/psl_current.dat")
-    historic_psl_path = pathlib.Path(f"{psl_dir}/psl_{year}_{month}.dat")
+def get_psl_by_path(psl_file: Path):
+    return _read_current_psl(psl_file)
+
+
+def get_psl_for_specific_date(year: str, month: str, psl_dir: str, psl_files: List[Path]) -> str:
+    current_psl_path = Path(f"{psl_dir}/psl_current.dat")
+    historic_psl_path = Path(f"{psl_dir}/psl_{year}_{month}.dat")
 
     if historic_psl_path in psl_files:
         return _read_historic_psl_with_current_etlds(current_psl_path, historic_psl_path)
@@ -38,13 +43,13 @@ def get_psl_for_specific_date(year: str, month: str, psl_dir: str, psl_files: Li
         return _read_current_psl(current_psl_path)
 
 
-def _read_current_psl(current_psl_path: pathlib.Path) -> str:
+def _read_current_psl(current_psl_path: Path) -> str:
     with open(current_psl_path, "r", encoding="utf-8") as current_psl_file:
         current_psl = _parse_psl_content(current_psl_file.read())
         return current_psl
 
 
-def _read_historic_psl_with_current_etlds(current_psl_path: pathlib.Path, historic_psl_path: pathlib.Path) -> str:
+def _read_historic_psl_with_current_etlds(current_psl_path: Path, historic_psl_path: Path) -> str:
     """
     Unify a historic PSL with the current one.
 
