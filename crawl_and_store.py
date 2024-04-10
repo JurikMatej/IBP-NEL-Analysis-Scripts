@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 
-import asyncio
-import tqdm
-import sys
+import gc
 import logging
 import re
-import os
-from typing import List
+import sys
 from pathlib import Path
-from datetime import datetime
+from typing import List
 
-import playwright._impl._errors as playwright_errors
-from playwright.async_api import async_playwright
+import asyncio
 import pandas as pd
+import playwright._impl._errors as playwright_errors
+import tqdm
+from playwright.async_api import async_playwright, Route
 
+from merge_and_save_crawled import merge_and_save_crawled
 from src import crawling_utils
 from src.classes.CrawledDomainNelRegistry import CrawledDomainNelRegistry
 from src.crawling_utils import ResponseData
@@ -27,7 +27,7 @@ CRAWL_DATA_STORAGE_PATH = "crawl_data_raw"
 CRAWL_DOMAINS_FILEPATH = "analyze_realtime_eligible_domains.parquet"
 CRAWL_PAGES_PER_DOMAIN = 10
 
-CRAWL_ASYNC_WORKERS = 25
+CRAWL_ASYNC_WORKERS = 20
 CRAWL_ASYNC_WORKER_LIFETIME_WORKLOAD = 20
 
 
@@ -40,16 +40,26 @@ logger = logging.getLogger(__name__)
 async def crawl_task(domain_queue: List[str], progressbar: tqdm.tqdm):
     async with async_playwright() as pw:
         chromium = pw.chromium
-        browser = await chromium.launch(headless=True)
-        ctx = await browser.new_context()
+        browser = await chromium.launch(headless=True)  # TODO should launch one chrome and create many contexts ?
+        ctx = await browser.new_context()               # TODO should create one context and create many pages ?
+
+        def weberror_callback(e):
+            # logger.warning(f"Web exception occurred (no impact on the crawling process): {e.error}")
+            pass
+        ctx.on("weberror", weberror_callback)
+
         page = await ctx.new_page()
+        page.on('crash', weberror_callback)
+
+        # Disable HTTP cache by enabling routes TODO just a possibility - check whether hinders performance
+        # await page.route('**', lambda route: route.continue_())
 
         while len(domain_queue) > 0:
             domain = domain_queue.pop(0)
 
             path_to_save = Path(f"{CRAWL_DATA_RAW_STORAGE_PATH}/{domain}.parquet")
             if path_to_save.exists():
-                logger.warning(f"SKIP - Crawled domain data for already exists ({domain})")
+                logger.warning(f"SKIP - Domain data already crawled in '{CRAWL_DATA_RAW_STORAGE_PATH}' ({domain})")
                 progressbar.update()
                 continue
 
@@ -88,7 +98,7 @@ async def crawl_task(domain_queue: List[str], progressbar: tqdm.tqdm):
 
                     # Add the requested domain link and all it's unique sub-resources to the task registry
                     for domain_response_data in response_dataset:
-                        # Process only resources originating from the crawled domain itself
+                        # Process only response resources originating from the crawled domain itself
                         if url_domain_pattern.match(domain_response_data.url):
                             domain_registry.insert(domain, domain_response_data)
 
@@ -96,8 +106,17 @@ async def crawl_task(domain_queue: List[str], progressbar: tqdm.tqdm):
             domain_registry.save_raw(path_to_save)
             progressbar.update()
 
+            # Make sure not to hold on to any redundant data that uses RAM
+            await ctx.clear_cookies()
+            del domain_registry
+            del response_dataset
+            del visited_links
+            del link_queue
+            gc.collect()
+
         await ctx.close()
         await browser.close()
+        gc.collect()
 
 
 def domain_workload_generator(domains: List[str]):
@@ -157,38 +176,12 @@ async def main():
                 # crawling_utils.log_all_tasks_stack_trace()
 
         except Exception as ex:
-            logger.exception(f"Could not gather crawl task result \n{ex}")
+            logger.exception(f"Error occurred during the async crawl: \n{ex}")
 
     logger.info("Crawl completed - gathering the results")
-
-    result_registry = gather_crawled_blobs(crawl_data_raw_path)
-
-    current_datetime = datetime.now().strftime("%Y%m%d-%H%M%S")
-    result_path = os.path.join(crawl_data_output_path.absolute(), f"{current_datetime}.parquet")
-
-    result_registry.count_totals()
-    result_registry.filter_out_incorrect_nel()
-    result_registry.save(result_path)
+    merge_and_save_crawled(CRAWL_DATA_RAW_STORAGE_PATH, CRAWL_DATA_STORAGE_PATH)
 
     logger.info("All done. Exiting...")
-
-
-def gather_crawled_blobs(input_dir: Path) -> CrawledDomainNelRegistry:
-    domain_data_files = list(input_dir.glob('*.parquet'))
-
-    if len(domain_data_files) < 1:
-        logger.warning("Crawl completed with 0 files crawled, "
-                       "aborting merging crawled data into a single file")
-
-        # Empty result
-        return CrawledDomainNelRegistry()
-
-    result = CrawledDomainNelRegistry()
-    for domain_data_file in domain_data_files:
-        domain_data_registry = CrawledDomainNelRegistry.read_raw(domain_data_file)
-        result.concat_content(domain_data_registry)
-
-    return result
 
 
 if __name__ == '__main__':
