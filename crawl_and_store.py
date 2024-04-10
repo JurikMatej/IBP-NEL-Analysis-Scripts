@@ -29,10 +29,10 @@ from src.crawling_utils import ResponseData
 ###############################
 # CONFIGURE THESE BEFORE USE: #
 ###############################
-CRAWL_DATA_RAW_STORAGE_PATH = "crawl_data_raw/blobs"
-CRAWL_DATA_STORAGE_PATH = "crawl_data_raw"
+CRAWL_DATA_RAW_STORAGE_PATH = "data/crawled_raw/blobs"
+CRAWL_DATA_STORAGE_PATH = "data/crawled_raw"
 
-CRAWL_DOMAINS_FILEPATH = "crawl_and_store_eligible_domains.parquet"
+CRAWL_DOMAINS_LIST_FILEPATH = "data/crawl_and_store_eligible_domains.parquet"
 CRAWL_PAGES_PER_DOMAIN = 10
 
 CRAWL_ASYNC_WORKERS = 20
@@ -149,8 +149,14 @@ async def main():
     crawl_data_output_path.mkdir(parents=True, exist_ok=True)
 
     logger.info("Reading list of domains to crawl")
-    eligible_domains = pd.read_parquet(CRAWL_DOMAINS_FILEPATH, columns=['url_domain']).reset_index(drop=True)
-    domains = eligible_domains[(eligible_domains.index >= 0) & (eligible_domains.index < 5000)]['url_domain'].tolist()
+
+    eligible_domains_source = Path(CRAWL_DOMAINS_LIST_FILEPATH)
+    if not eligible_domains_source.exists() or not eligible_domains_source.is_file():
+        logger.error("Eligible domains dataframe file not found. Please generate it using the eligible domains script")
+        return
+
+    eligible_domains = pd.read_parquet(CRAWL_DOMAINS_LIST_FILEPATH, columns=['url_domain']).reset_index(drop=True)
+    domains = eligible_domains[(eligible_domains.index >= 4000) & (eligible_domains.index < 7000)]['url_domain'].tolist()
     domain_workload_pool = domain_workload_generator(domains)
 
     logger.info(f"Beginning to crawl {len(domains)} domains")

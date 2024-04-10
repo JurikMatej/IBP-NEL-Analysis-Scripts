@@ -160,16 +160,19 @@ cython_debug/
 .idea/
 
 
+#
 # Custom
+#
 adhoc_test.ipynb
+
+# Repo structure
+config/*-temp*
+!config/httparchive_download_config.json
+
+data/*.parquet
+data/httparchive_raw/*
+data/httparchive_raw_tests/
+data/crawled_raw/*
+data/metrics/**/*.parquet
+
 gcp-secrets/
-httparchive_data/
-httparchive_data_raw/
-httparchive_data_raw_tests/
-crawl_data_raw/
-
-download_config_full.json
-latex_testing.tex
-out/
-
-metric_data/**/*.parquet

@@ -1,28 +1,30 @@
 #!/usr/bin/env python3
+
 """
 Additional standalone script to merge crawled blobs data AD HOC
 """
 
+import logging
 import os
 import sys
-import logging
-from pathlib import Path
-from src.classes.CrawledDomainNelRegistry import CrawledDomainNelRegistry
-from datetime import datetime
 import time
+from datetime import datetime
+from pathlib import Path
 
-
-###############################
-# CONFIGURE THESE BEFORE USE: #
-###############################
-CRAWL_DATA_RAW_STORAGE_PATH = "crawl_data_raw/blobs"
-CRAWL_DATA_STORAGE_PATH = "crawl_data_raw"
+from src.classes.CrawledDomainNelRegistry import CrawledDomainNelRegistry
 
 
 # LOGGING
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format='\n%(asctime)s:%(levelname)s\t- %(message)s')
 logger = logging.getLogger(__name__)
+
+
+###############################
+# CONFIGURE THESE BEFORE USE: #
+###############################
+CRAWL_DATA_RAW_STORAGE_PATH = "data/crawled_raw/blobs"
+CRAWL_DATA_STORAGE_PATH = "data/crawled_raw"
 
 
 def merge_crawled_and_save(input_dir: str, output_dir: str):

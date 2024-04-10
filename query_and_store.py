@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 """
 author:         Matej Jurík <xjurik12@stud.fit.vutbr.cz>
 
@@ -109,11 +110,11 @@ GC_PATH_TO_CREDENTIALS_FILE = "gcp-secrets/nel-analysis-f1c127130c7f-nel-analysi
 DATA_EXPORT_BUCKET_NAME = "downloadable-nel-analysis-data"
 
 # Download directory structure
-DOWNLOAD_OUTPUT_DIR_PATH = "httparchive_data_raw"
+DOWNLOAD_OUTPUT_DIR_PATH = "data/httparchive_raw"
 DOWNLOAD_TEMP_BLOBS_DIR_PATH = f"{DOWNLOAD_OUTPUT_DIR_PATH}/blobs"
 
 # Download config
-DOWNLOAD_CONFIG_PATH = "download_config.json"
+DOWNLOAD_CONFIG_PATH = "config/httparchive_download_config.json"
 
 
 def prepare_nel_data_table():

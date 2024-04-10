@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 """
 author:         Matej Jurík <xjurik12@stud.fit.vutbr.cz>
 
@@ -10,11 +11,11 @@ description:    Analyzes the downloaded raw HTTP Archive data from the Google Cl
 purpose:        Prepares the downloaded raw NEL data to be later visualized by per-metric visualization scripts.
 """
 
+import gc
 import io
 import logging
-import sys
 import pathlib
-import gc
+import sys
 from typing import List
 
 import numpy as np
@@ -22,18 +23,20 @@ import numpy as np
 import src.nel_analyis as nel_analysis
 from src import psl_utils
 
+
 # LOGGING
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format='%(asctime)s:%(levelname)s\t- %(message)s')
 logger = logging.getLogger(__name__)
+
 
 ###############################
 # CONFIGURE THESE BEFORE USE: #
 ###############################
 
 # Download directory structure
-NEL_DATA_DIR_PATH = "httparchive_data_raw"
-PSL_DIR_PATH = "public_suffix_lists"
+NEL_DATA_DIR_PATH = "data/httparchive_raw"
+PSL_DIR_PATH = "resources/public_suffix_lists"
 
 # True:
 #   Use the pre-computed "registrable domain name" columns from BigQuery HttpArchive data (use "data download time" PSL)
@@ -53,7 +56,7 @@ def main():
     psl_dir.mkdir(exist_ok=True, parents=True)
     psl_files = list(psl_dir.glob("psl_*.dat"))
     if pathlib.Path(f"{PSL_DIR_PATH}/psl_current.dat") not in psl_files:
-        logger.error(f"Please provide at least the current Public Suffix List ({PSL_DIR_PATH}/psl_current.dat).")
+        logger.error(f"Please provide at least the current Public Suffix List ({PSL_DIR_PATH}/psl_current.dat)")
         return
 
     logger.info(f"Analyzing metrics for all files in ---{NEL_DATA_DIR_PATH}---")

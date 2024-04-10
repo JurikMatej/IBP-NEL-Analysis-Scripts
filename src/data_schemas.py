@@ -83,31 +83,3 @@ PYARROW_MERGE_WRITE_SCHEMA = pa.schema([
     ('rt_collectors', pa.list_(pa.string())),
     ('rt_collectors_registrable', pa.list_(pa.string()))
 ])
-
-
-PANDAS_NEL_DATA_TYPES = {
-    'requestId': "UInt32",
-    'firstReq': "category",
-    'type': "category",
-    'ext': "category",
-    'status': "category",
-    'url': "object",
-    'url_domain': "category",
-    'url_domain_registrable': "category",
-    'url_domain_hosted_resources': "category",  # "UInt32",
-    'url_domain_hosted_resources_with_nel': "category",  # "UInt32",
-    'url_domain_monitored_resources_ratio': "Float32",
-    'total_crawled_resources': "category",
-    'total_crawled_domains': "category",
-    'total_crawled_resources_with_nel': "category",
-    'total_crawled_domains_with_nel': "category",
-    'total_crawled_resources_with_correct_nel': "category",
-    'total_crawled_domains_with_correct_nel': "category",
-    'nel_max_age': "category",
-    'nel_failure_fraction': "category",
-    'nel_success_fraction': "category",
-    'nel_include_subdomains': "category",
-    'nel_report_to': "category",
-    "rt_collectors": "object",
-    "rt_collectors_registrable": "object"
-}
