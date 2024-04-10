@@ -43,7 +43,7 @@ async def update_link_queue(link_queue: List[str], visited_links: List[str], cur
     available_unique_links = await _get_unique_page_links(page)
     links_to_current_domain = _filter_selfpointing_and_external_links(available_unique_links, current_domain_name)
 
-    unique_document_links = _filter_fragment_and_query_string_links(links_to_current_domain)
+    unique_document_links = _filter_fragments_from_links(links_to_current_domain)
 
     valid_links_to_the_same_domain = _relative_links_to_absolute_links(unique_document_links, current_domain_name)
 
@@ -59,14 +59,15 @@ async def _get_unique_page_links(page: Page) -> List[str]:
     try:
         all_anchors = await page.eval_on_selector_all("a",
                                                       "elements => elements.map(element => element.href)")
+        return list(set(all_anchors))
 
     except playwright_errors.Error:
         logger.warning(f"Page {page.url}: could not extract anchor elements")
         return []
 
-    if isinstance(all_anchors, list):
-        return list(set(all_anchors))
-    return []
+    except (TypeError, Exception):
+        # Weird behavior - e.g. all_anchors evaluated as dict()
+        return []
 
 
 def _filter_selfpointing_and_external_links(links: List[str], current_domain_name: str) -> List[str]:
@@ -78,20 +79,32 @@ def _filter_selfpointing_and_external_links(links: List[str], current_domain_nam
         links))
 
 
-def _filter_fragment_and_query_string_links(links_to_the_same_domain: List[str]):
+def _filter_fragments_from_links(links_to_the_same_domain: List[str]) -> List[str]:
+    """
+    Filter out fragments from the URL links provided.
+    Effectively filters URL links pointing to the same location, only different sections of the content
+    """
     result = []
 
     for link in links_to_the_same_domain:
+        # Temporarily remove the query string part of URL link if found
+        qs = ""
         query_sign_index = link.find('?')
         if query_sign_index != -1:
+            qs = link[query_sign_index:]
             link = link[:query_sign_index]
 
+        # Find the last slash character
         last_slash_index = link.rfind('/')
         if last_slash_index != -1:
+            # Check whether a hash (fragment) char is found after the slash
             fragment_index = link[last_slash_index + 1:].find('#')
             if fragment_index != -1:
-                result.append(link[:last_slash_index + fragment_index + 1])
-                continue
+                # If so, exclude the fragment part from the link
+                link = link[:last_slash_index + fragment_index + 1]
+
+        # And add the removed query string part
+        link += qs
 
         result.append(link)
 
