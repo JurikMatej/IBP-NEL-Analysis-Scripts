@@ -202,7 +202,7 @@ class CrawledDomainNelRegistry(object):
         self._data.to_parquet(file_path)
 
     @staticmethod
-    def read_raw(file_path: str | Path):
+    def read_raw(file_path: str | Path) -> CrawledDomainNelRegistry:
         raw = pd.read_parquet(file_path).astype(CrawledDomainNelRegistry.DF_SCHEMA)
 
         result = CrawledDomainNelRegistry()

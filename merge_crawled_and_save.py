@@ -25,7 +25,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 
-def merge_and_save_crawled(input_dir: str, output_dir: str):
+def merge_crawled_and_save(input_dir: str, output_dir: str):
     logger.info("Merging last crawled blob data")
 
     crawl_data_raw_path = Path(input_dir)
@@ -59,4 +59,4 @@ def merge_and_save_crawled(input_dir: str, output_dir: str):
 
 
 if __name__ == '__main__':
-    merge_and_save_crawled(CRAWL_DATA_RAW_STORAGE_PATH, CRAWL_DATA_STORAGE_PATH)
+    merge_crawled_and_save(CRAWL_DATA_RAW_STORAGE_PATH, CRAWL_DATA_STORAGE_PATH)

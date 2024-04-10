@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 
+"""
+author:         Matej Jurík <xjurik12@stud.fit.vutbr.cz>
+
+description:    Descriptive..
+
+purpose:        Purposeful...
+"""
+
 import gc
 import logging
 import re
@@ -11,9 +19,9 @@ import asyncio
 import pandas as pd
 import playwright._impl._errors as playwright_errors
 import tqdm
-from playwright.async_api import async_playwright, Route
+from playwright.async_api import async_playwright
 
-from merge_and_save_crawled import merge_and_save_crawled
+from merge_crawled_and_save import merge_crawled_and_save
 from src import crawling_utils
 from src.classes.CrawledDomainNelRegistry import CrawledDomainNelRegistry
 from src.crawling_utils import ResponseData
@@ -24,7 +32,7 @@ from src.crawling_utils import ResponseData
 CRAWL_DATA_RAW_STORAGE_PATH = "crawl_data_raw/blobs"
 CRAWL_DATA_STORAGE_PATH = "crawl_data_raw"
 
-CRAWL_DOMAINS_FILEPATH = "analyze_realtime_eligible_domains.parquet"
+CRAWL_DOMAINS_FILEPATH = "crawl_and_store_eligible_domains.parquet"
 CRAWL_PAGES_PER_DOMAIN = 10
 
 CRAWL_ASYNC_WORKERS = 20
@@ -179,7 +187,7 @@ async def main():
             logger.exception(f"Error occurred during the async crawl: \n{ex}")
 
     logger.info("Crawl completed - gathering the results")
-    merge_and_save_crawled(CRAWL_DATA_RAW_STORAGE_PATH, CRAWL_DATA_STORAGE_PATH)
+    merge_crawled_and_save(CRAWL_DATA_RAW_STORAGE_PATH, CRAWL_DATA_STORAGE_PATH)
 
     logger.info("All done. Exiting...")
 

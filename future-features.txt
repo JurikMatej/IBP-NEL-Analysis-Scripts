@@ -1,2 +1,0 @@
-* Analysis - more metric data
-    1. Most common sub-webpage keywords (/login, /home) that are monitored by NEL
