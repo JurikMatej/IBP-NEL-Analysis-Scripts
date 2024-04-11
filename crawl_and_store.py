@@ -19,7 +19,7 @@ import asyncio
 import pandas as pd
 import playwright._impl._errors as playwright_errors
 import tqdm
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, BrowserContext
 
 from merge_crawled_and_save import merge_crawled_and_save
 from src import crawling_utils
@@ -47,88 +47,77 @@ CRAWL_ASYNC_WORKER_LIFETIME_WORKLOAD = 20
 
 
 def crash_logger_callback(domain, exception):
-    logger.warning(f"Domain ({domain}) crawl failed: {exception.error}")
+    logger.warning(f"Domain ({domain}) crawl failed: {exception}")
 
 
 def noop_logger_callback(_):
     pass
 
 
-async def crawl_task(domain_queue: List[str], progressbar: tqdm.tqdm):
-    async with async_playwright() as pw:
-        chromium = pw.chromium
-        browser = await chromium.launch(headless=True)  # TODO should launch one chrome and create many contexts ?
-        ctx = await browser.new_context()               # TODO should create one context and create many pages ?
-        ctx.on("weberror", noop_logger_callback)
+async def crawl_task(ctx: BrowserContext, domain_queue: List[str], progressbar: tqdm.tqdm):
+    page = await ctx.new_page()
 
-        page = await ctx.new_page()
+    # Disable HTTP cache by enabling routes TODO just a possibility - check whether hinders performance
+    # await page.route('**', lambda route: route.continue_())
 
-        # Disable HTTP cache by enabling routes TODO just a possibility - check whether hinders performance
-        # await page.route('**', lambda route: route.continue_())
+    while len(domain_queue) > 0:
+        domain = domain_queue.pop(0)
 
-        while len(domain_queue) > 0:
-            domain = domain_queue.pop(0)
-
-            path_to_save = Path(f"{CRAWL_DATA_RAW_STORAGE_PATH}/{domain}.parquet")
-            if path_to_save.exists():
-                logger.warning(f"SKIP - Domain data already crawled in '{CRAWL_DATA_RAW_STORAGE_PATH}' ({domain})")
-                progressbar.update()
-                continue
-
-            domain_registry = CrawledDomainNelRegistry()
-            domain_link = f"https://{domain}/"
-
-            url_domain_pattern = re.compile(fr"https?://({domain}/)")
-
-            # Prepare to intercept responses for current domain (set the callback for each domain)
-            response_dataset = []
-            page.on('crash', lambda ex: crash_logger_callback(domain, ex))
-            page.on("response", lambda response: response_dataset.append(
-                ResponseData(url=response.url, status=response.status, headers=response.headers))
-            )
-
-            visited_links = []
-            link_queue = [domain_link]  # First request to a domain
-
-            while len(link_queue) > 0:
-                domain_next_link = link_queue.pop(0)
-
-                try:
-                    await page.goto(domain_next_link, timeout=0)
-
-                except playwright_errors.TimeoutError:
-                    logger.warning(f"URL {domain_next_link} timed out")
-
-                except playwright_errors.Error as error:
-                    logger.warning(f"URL fetch failed: {error.message.split('\n')[0] or error.name}")
-
-                else:
-                    visited_links.append(domain_next_link)
-                    if len(visited_links) > CRAWL_PAGES_PER_DOMAIN:
-                        break  # Onto the next domain
-
-                    link_queue = await crawling_utils.update_link_queue(link_queue, visited_links, domain, page)
-
-                    # Add the requested domain link and all it's unique sub-resources to the task registry
-                    for domain_response_data in response_dataset:
-                        # Process only response resources originating from the crawled domain itself
-                        if url_domain_pattern.match(domain_response_data.url):
-                            domain_registry.insert(domain, domain_response_data)
-
-            # Current domain crawl finish
-            domain_registry.save_raw(path_to_save)
+        path_to_save = Path(f"{CRAWL_DATA_RAW_STORAGE_PATH}/{domain}.parquet")
+        if path_to_save.exists():
+            logger.warning(f"SKIP - Domain data already crawled in '{CRAWL_DATA_RAW_STORAGE_PATH}' ({domain})")
             progressbar.update()
+            continue
 
-            # Make sure not to hold on to any redundant data that uses RAM
-            await ctx.clear_cookies()
-            del domain_registry
-            del visited_links
-            del link_queue
-            gc.collect()
+        domain_registry = CrawledDomainNelRegistry()
+        domain_link = f"https://{domain}/"
 
-        await ctx.close()
-        await browser.close()
+        url_domain_pattern = re.compile(fr"https?://({domain}/)")
+
+        # Prepare to intercept responses for current domain (set the callback for each domain)
+        response_dataset = []
+        page.on('crash', lambda ex: crash_logger_callback(domain, ex))
+        page.on("response", lambda response: response_dataset.append(
+            ResponseData(url=response.url, status=response.status, headers=response.headers))
+        )
+
+        visited_links = []
+        link_queue = [domain_link]  # First request to a domain
+
+        while len(link_queue) > 0:
+            domain_next_link = link_queue.pop(0)
+
+            try:
+                await page.goto(domain_next_link, timeout=0)
+
+            except playwright_errors.Error as error:
+                logger.warning(f"URL fetch failed: {error.message.split('\n')[0] or error.name}")
+
+            else:
+                visited_links.append(domain_next_link)
+                if len(visited_links) > CRAWL_PAGES_PER_DOMAIN:
+                    break  # Onto the next domain
+
+                link_queue = await crawling_utils.update_link_queue(link_queue, visited_links, domain, page)
+
+                # Add the requested domain link and all it's unique sub-resources to the task registry
+                for domain_response_data in response_dataset:
+                    # Process only response resources originating from the crawled domain itself
+                    if url_domain_pattern.match(domain_response_data.url):
+                        domain_registry.insert(domain, domain_response_data)
+
+        # Current domain crawl finish
+        domain_registry.save_raw(path_to_save)
+        progressbar.update()
+
+        # Make sure not to hold on to any redundant data that uses RAM
+        await ctx.clear_cookies()
+        del domain_registry
+        del visited_links
+        del link_queue
         gc.collect()
+
+    gc.collect()
 
 
 def domain_workload_generator(domains: List[str]):
@@ -160,43 +149,52 @@ async def main():
         return
 
     eligible_domains = pd.read_parquet(CRAWL_DOMAINS_LIST_FILEPATH, columns=['url_domain']).reset_index(drop=True)
-    # domains = \
-    #     eligible_domains[(eligible_domains.index >= 4000) & (eligible_domains.index < 7000)]['url_domain'].tolist()
-    domains = eligible_domains['url_domain'].tolist()
+    domains = \
+        eligible_domains[(eligible_domains.index >= 3300) & (eligible_domains.index < 30000)]['url_domain'].tolist()
+    # domains = eligible_domains['url_domain'].tolist()
     domain_workload_pool = domain_workload_generator(domains)
 
     logger.info(f"Beginning to crawl {len(domains)} domains")
 
-    with tqdm.tqdm(total=len(domains)) as progressbar:
-        pending = set()
-        for i in range(CRAWL_ASYNC_WORKERS):
-            task_domain_pool = next(domain_workload_pool)
-            if len(task_domain_pool) > 0:
-                pending.add(asyncio.create_task(crawl_task(task_domain_pool, progressbar)))
-            else:
-                break
+    async with async_playwright() as pw:
+        chromium = pw.chromium
+        browser = await chromium.launch(headless=True)
+        ctx = await browser.new_context()
+        ctx.on("weberror", noop_logger_callback)
 
-        try:
-            should_generate_more_tasks = True
-            while pending:
-                done, pending = await asyncio.wait(
-                    pending,
-                    return_when=asyncio.FIRST_COMPLETED
-                )
-                logger.debug("A task has been completed and closed")
+        with tqdm.tqdm(total=len(domains)) as progressbar:
+            pending = set()
+            for i in range(CRAWL_ASYNC_WORKERS):
+                task_domain_pool = next(domain_workload_pool)
+                if len(task_domain_pool) > 0:
+                    pending.add(asyncio.create_task(crawl_task(ctx, task_domain_pool, progressbar)))
+                else:
+                    break
 
-                if should_generate_more_tasks:
-                    next_task_domain_pool = next(domain_workload_pool)
-                    if len(next_task_domain_pool) > 0:
-                        logger.debug("Spawning a new Task")
-                        pending.add(asyncio.ensure_future(crawl_task(next_task_domain_pool, progressbar)))
-                    else:
-                        should_generate_more_tasks = False
+            try:
+                should_generate_more_tasks = True
+                while pending:
+                    done, pending = await asyncio.wait(
+                        pending,
+                        return_when=asyncio.FIRST_COMPLETED
+                    )
+                    logger.debug("A task has been completed and closed")
 
-                # crawling_utils.log_all_tasks_stack_trace()
+                    if should_generate_more_tasks:
+                        next_task_domain_pool = next(domain_workload_pool)
+                        if len(next_task_domain_pool) > 0:
+                            logger.debug("Spawning a new Task")
+                            pending.add(asyncio.ensure_future(crawl_task(ctx, next_task_domain_pool, progressbar)))
+                        else:
+                            should_generate_more_tasks = False
 
-        except Exception as ex:
-            logger.exception(f"Error occurred during the async crawl: \n{ex}")
+                    # crawling_utils.log_all_tasks_stack_trace()
+
+            except Exception as ex:
+                logger.exception(f"Error occurred during the async crawl: \n{ex}")
+
+        await ctx.close()
+        await browser.close()
 
     logger.info("Crawl completed - gathering the results")
     merge_crawled_and_save(CRAWL_DATA_RAW_STORAGE_PATH, CRAWL_DATA_STORAGE_PATH)
