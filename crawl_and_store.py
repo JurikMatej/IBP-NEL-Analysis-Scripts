@@ -19,7 +19,7 @@ import asyncio
 import pandas as pd
 import playwright._impl._errors as playwright_errors
 import tqdm
-from playwright.async_api import async_playwright, BrowserContext
+from playwright.async_api import async_playwright, Playwright
 
 from merge_crawled_and_save import merge_crawled_and_save
 from src import crawling_utils
@@ -42,8 +42,8 @@ CRAWL_DATA_STORAGE_PATH = "data/crawled_raw"
 CRAWL_DOMAINS_LIST_FILEPATH = "data/crawl_and_store_eligible_domains.parquet"
 CRAWL_PAGES_PER_DOMAIN = 10
 
-CRAWL_ASYNC_WORKERS = 20
-CRAWL_ASYNC_WORKER_LIFETIME_WORKLOAD = 20
+CRAWL_ASYNC_WORKERS = 10
+CRAWL_ASYNC_WORKER_LIFETIME_WORKLOAD = 40
 
 
 def crash_logger_callback(domain, exception):
@@ -54,7 +54,12 @@ def noop_logger_callback(_):
     pass
 
 
-async def crawl_task(ctx: BrowserContext, domain_queue: List[str], progressbar: tqdm.tqdm):
+async def crawl_task(pw: Playwright, domain_queue: List[str], progressbar: tqdm.tqdm):
+    chromium = pw.chromium
+    browser = await chromium.launch(headless=True)
+    ctx = await browser.new_context()
+    ctx.on("weberror", noop_logger_callback)
+
     page = await ctx.new_page()
 
     # Disable HTTP cache by enabling routes TODO just a possibility - check whether hinders performance
@@ -117,6 +122,9 @@ async def crawl_task(ctx: BrowserContext, domain_queue: List[str], progressbar: 
         del link_queue
         gc.collect()
 
+    await page.close()
+    await ctx.close()
+    await browser.close()
     gc.collect()
 
 
@@ -150,24 +158,24 @@ async def main():
 
     eligible_domains = pd.read_parquet(CRAWL_DOMAINS_LIST_FILEPATH, columns=['url_domain']).reset_index(drop=True)
     domains = \
-        eligible_domains[(eligible_domains.index >= 3300) & (eligible_domains.index < 30000)]['url_domain'].tolist()
+        eligible_domains[(eligible_domains.index >= 5000) & (eligible_domains.index < 30000)]['url_domain'].tolist()
     # domains = eligible_domains['url_domain'].tolist()
     domain_workload_pool = domain_workload_generator(domains)
 
     logger.info(f"Beginning to crawl {len(domains)} domains")
 
     async with async_playwright() as pw:
-        chromium = pw.chromium
-        browser = await chromium.launch(headless=True)
-        ctx = await browser.new_context()
-        ctx.on("weberror", noop_logger_callback)
+        # chromium = pw.chromium
+        # browser = await chromium.launch(headless=True)
+        # ctx = await browser.new_context()
+        # ctx.on("weberror", noop_logger_callback)
 
         with tqdm.tqdm(total=len(domains)) as progressbar:
             pending = set()
             for i in range(CRAWL_ASYNC_WORKERS):
                 task_domain_pool = next(domain_workload_pool)
                 if len(task_domain_pool) > 0:
-                    pending.add(asyncio.create_task(crawl_task(ctx, task_domain_pool, progressbar)))
+                    pending.add(asyncio.create_task(crawl_task(pw, task_domain_pool, progressbar)))
                 else:
                     break
 
@@ -184,7 +192,7 @@ async def main():
                         next_task_domain_pool = next(domain_workload_pool)
                         if len(next_task_domain_pool) > 0:
                             logger.debug("Spawning a new Task")
-                            pending.add(asyncio.ensure_future(crawl_task(ctx, next_task_domain_pool, progressbar)))
+                            pending.add(asyncio.ensure_future(crawl_task(pw, next_task_domain_pool, progressbar)))
                         else:
                             should_generate_more_tasks = False
 
@@ -193,8 +201,8 @@ async def main():
             except Exception as ex:
                 logger.exception(f"Error occurred during the async crawl: \n{ex}")
 
-        await ctx.close()
-        await browser.close()
+        # await ctx.close()
+        # await browser.close()
 
     logger.info("Crawl completed - gathering the results")
     merge_crawled_and_save(CRAWL_DATA_RAW_STORAGE_PATH, CRAWL_DATA_STORAGE_PATH)
