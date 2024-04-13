@@ -56,7 +56,7 @@ async def _get_unique_page_links(page: Page) -> List[str]:
         return list(set(all_anchors))
 
     except playwright_errors.Error as ex:
-        logger.warning(f"Page {page.url}: {ex}")
+        logger.warning(f"CONTENT_EXTRACT_FAILED - {ex} ({page.url})")
         return []
 
     except (TypeError, Exception):

@@ -41,12 +41,12 @@ CRAWL_DATA_RAW_STORAGE_PATH = "data/crawled_raw/blobs"
 CRAWL_DATA_STORAGE_PATH = "data/crawled_raw"
 
 CRAWL_DOMAINS_LIST_FILEPATH = "data/crawl_and_store_eligible_domains.parquet"
-CRAWL_PAGES_PER_DOMAIN = 10
+CRAWL_PAGES_PER_DOMAIN = 20
 
-CRAWL_ASYNC_WORKERS = 10
+CRAWL_ASYNC_WORKERS = 8
 CRAWL_ASYNC_WORKER_LIFETIME_WORKLOAD = 40
 
-CRAWL_ASYNC_PAGE_LOAD_FAILSAFE_TIMEOUT = 60_000  # milliseconds
+CRAWL_ASYNC_PAGE_LOAD_FAILSAFE_TIMEOUT = 90_000  # milliseconds
 
 
 def crash_logger_callback(domain, exception):
@@ -90,18 +90,21 @@ async def crawl_task(pw: Playwright, domain_queue: List[str], progressbar: tqdm.
         domain_next_link = domain_link_tree.get_next()  # First request will be to the domain itself
 
         while domain_next_link is not None:
+            fetch_failed_totally = False
             try:
-                await page.goto(domain_next_link,
-                                wait_until="domcontentloaded", timeout=CRAWL_ASYNC_PAGE_LOAD_FAILSAFE_TIMEOUT)
+                await page.goto(domain_next_link, timeout=CRAWL_ASYNC_PAGE_LOAD_FAILSAFE_TIMEOUT)
 
             except playwright_errors.TimeoutError:
-                logger.warning(f"URL {domain_next_link} HANGs for too long - timed out")
+                # This will probably happen quite often, but strategically it is better to not wait for large
+                # sub-resources for every page
+                # Keeping only partial data = direct response for the requested link + the sub-resources fetched before timeout
+                logger.warning(f"FULL_LOAD_TIMED_OUT - Full load took too long. Keeping only partial data ({domain_next_link})")
 
             except playwright_errors.Error as error:
                 logger.warning(f"URL fetch failed: {error.message.split('\n')[0] or error.name}")
+                fetch_failed_totally = True
 
-            else:
-                # Page fetch successful
+            if not fetch_failed_totally:
                 # Update NEL data registry with response dataset
                 for domain_response_data in domain_response_dataset:
                     # Process only response resources originating from the crawled domain itself
@@ -112,12 +115,14 @@ async def crawl_task(pw: Playwright, domain_queue: List[str], progressbar: tqdm.
                 if domain_link_tree.get_visited_links_count() >= CRAWL_PAGES_PER_DOMAIN:
                     break  # Onto the next domain
 
-                # Else, add new links to the link tree & continue crawling
+                # Add new links to the link tree & continue crawling
                 new_links_available = await crawling_utils.get_formatted_page_links(page, domain_name)
                 domain_link_tree.add(new_links_available)
 
-            finally:
-                domain_next_link = domain_link_tree.get_next()
+                # Reset inserted data before crawling next link
+                domain_response_dataset.clear()
+
+            domain_next_link = domain_link_tree.get_next()
 
         # Current DOMAIN finished crawling
         domain_nel_data_registry.save_raw(path_to_save)
@@ -166,9 +171,9 @@ async def main():
         return
 
     eligible_domains = pd.read_parquet(CRAWL_DOMAINS_LIST_FILEPATH, columns=['url_domain']).reset_index(drop=True)
-    domains = \
-        eligible_domains[(eligible_domains.index >= 16100) & (eligible_domains.index < 30000)]['url_domain'].tolist()
-    # domains = eligible_domains['url_domain'].tolist()
+    # domains = \
+    #     eligible_domains[(eligible_domains.index >= 16840) & (eligible_domains.index < 30000)]['url_domain'].tolist()
+    domains = eligible_domains['url_domain'].tolist()
     domain_workload_pool = domain_workload_generator(domains)
 
     logger.info(f"Beginning to crawl {len(domains)} domains")
