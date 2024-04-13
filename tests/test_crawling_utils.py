@@ -114,3 +114,28 @@ class TestCrawlingUtils:
         result = await crawling_utils._get_unique_page_links(page)
 
         assert result == []
+
+    @pytest.mark.parametrize(
+        "input_link, expected",
+        [
+            ("https://example.com/", ""),
+            ("https://example.com", ""),
+            ("example.com", ""),
+        ]
+    )
+    def test_absolute_to_relative_link__base_domain_returns_empty_link(self, input_link, expected):
+        assert crawling_utils._absolute_to_relative_link(input_link, "example.com") == expected
+
+    @pytest.mark.parametrize(
+        "input_link, expected",
+        [
+            ("https://example.com/sub",             "sub"),
+            ("https://example.com/sub/page",        "sub/page"),
+            ("https://example.com/sub/page?qs=qs",  "sub/page?qs=qs"),
+            ("example.com/sub",                     "sub"),
+            ("example.com/sub/page",                "sub/page"),
+            ("example.com/sub/page?qs=qs",          "sub/page?qs=qs"),
+        ]
+    )
+    def test_absolute_to_relative_link__sub_paths_without_leading_slash(self, input_link, expected):
+        assert crawling_utils._absolute_to_relative_link(input_link, "example.com") == expected

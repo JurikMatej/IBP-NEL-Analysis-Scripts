@@ -38,20 +38,14 @@ class ResponseData:
     headers: dict[str, str] | None
 
 
-async def update_link_queue(link_queue: List[str], visited_links: List[str], current_domain_name: str,
-                            page: Page) -> List[str]:
-    available_unique_links = await _get_unique_page_links(page)
-    links_to_current_domain = _filter_selfpointing_and_external_links(available_unique_links, current_domain_name)
+async def get_formatted_page_links(page: Page, domain_name: str) -> List[str]:
+    available_links = await _get_unique_page_links(page)
+    internal_links = _filter_external_links(available_links, domain_name)
+    unique_document_links = _filter_fragments_from_links(internal_links)
 
-    unique_document_links = _filter_fragments_from_links(links_to_current_domain)
+    parsed_relative_links = _absolute_to_relative_links(unique_document_links, domain_name)
 
-    valid_links_to_the_same_domain = _relative_links_to_absolute_links(unique_document_links, current_domain_name)
-
-    valid_new_links = list(filter(lambda link: link not in visited_links, valid_links_to_the_same_domain))
-
-    link_queue.extend(valid_new_links)
-    result = list(set(link_queue))
-
+    result = list(set(parsed_relative_links))
     return result
 
 
@@ -61,8 +55,8 @@ async def _get_unique_page_links(page: Page) -> List[str]:
                                                       "elements => elements.map(element => element.href)")
         return list(set(all_anchors))
 
-    except playwright_errors.Error:
-        logger.warning(f"Page {page.url}: could not extract anchor elements")
+    except playwright_errors.Error as ex:
+        logger.warning(f"Page {page.url}: {ex}")
         return []
 
     except (TypeError, Exception):
@@ -70,23 +64,22 @@ async def _get_unique_page_links(page: Page) -> List[str]:
         return []
 
 
-def _filter_selfpointing_and_external_links(links: List[str], current_domain_name: str) -> List[str]:
+def _filter_external_links(links: List[str], domain_name: str) -> List[str]:
     return list(filter(
         lambda link:
-            link.startswith(f"https://{current_domain_name}/")
-            or link.startswith(f"https://www.{current_domain_name}/")
+            link.startswith(f"https://{domain_name}/")
             or link.startswith("/"),
         links))
 
 
-def _filter_fragments_from_links(links_to_the_same_domain: List[str]) -> List[str]:
+def _filter_fragments_from_links(links: List[str]) -> List[str]:
     """
     Filter out fragments from the URL links provided.
     Effectively filters URL links pointing to the same location, only different sections of the content
     """
     result = []
 
-    for link in links_to_the_same_domain:
+    for link in links:
         # Temporarily remove the query string part of URL link if found
         qs = ""
         query_sign_index = link.find('?')
@@ -111,18 +104,21 @@ def _filter_fragments_from_links(links_to_the_same_domain: List[str]) -> List[st
     return list(set(result))
 
 
-def _relative_links_to_absolute_links(links_to_the_same_domain: List[str], current_domain_name: str) -> List[str]:
-    return list(map(lambda link: __relative_to_absolute_link(link, current_domain_name), links_to_the_same_domain))
+def _absolute_to_relative_links(links: List[str], domain_name: str) -> List[str]:
+    return list(map(lambda link: _absolute_to_relative_link(link, domain_name), links))
 
 
-def __relative_to_absolute_link(link: str, current_domain_name: str) -> str:
-    if link.startswith("/"):
-        result = f"https://{current_domain_name}{link}"
-    else:
-        result = link
+def _absolute_to_relative_link(link: str, domain_name: str) -> str:
+    result = re.sub("^https?://", "", link)
 
-    if not result.endswith("/"):
-        result = f"{result}/"
+    if result.startswith("/"):
+        result = result[1:]
+
+    if result.endswith("/"):
+        result = result[:-1]
+
+    if result.startswith(domain_name):
+        result = result[len(domain_name) + 1:]
 
     return result
 

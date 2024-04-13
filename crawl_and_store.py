@@ -24,6 +24,7 @@ from playwright.async_api import async_playwright, Playwright
 from merge_crawled_and_save import merge_crawled_and_save
 from src import crawling_utils
 from src.classes.CrawledDomainNelRegistry import CrawledDomainNelRegistry
+from src.classes.DomainLinkRegistry import DomainLinkRegistry
 from src.crawling_utils import ResponseData
 
 
@@ -66,50 +67,55 @@ async def crawl_task(pw: Playwright, domain_queue: List[str], progressbar: tqdm.
     # await page.route('**', lambda route: route.continue_())
 
     while len(domain_queue) > 0:
-        domain = domain_queue.pop(0)
+        domain_name = domain_queue.pop(0)
 
-        path_to_save = Path(f"{CRAWL_DATA_RAW_STORAGE_PATH}/{domain}.parquet")
+        path_to_save = Path(f"{CRAWL_DATA_RAW_STORAGE_PATH}/{domain_name}.parquet")
         if path_to_save.exists():
-            logger.warning(f"SKIP - Domain data already crawled in '{CRAWL_DATA_RAW_STORAGE_PATH}' ({domain})")
+            logger.warning(f"SKIP - Domain data already crawled in '{CRAWL_DATA_RAW_STORAGE_PATH}' ({domain_name})")
             progressbar.update()
             continue
 
         domain_registry = CrawledDomainNelRegistry()
-        domain_link = f"https://{domain}/"
+        domain_link = f"https://{domain_name}/"
 
-        url_domain_pattern = re.compile(fr"https?://({domain}/)")
+        url_domain_pattern = re.compile(fr"https?://({domain_name}/)")
 
         # Prepare to intercept responses for current domain (set the callback for each domain)
         response_dataset = []
-        page.on('crash', lambda ex: crash_logger_callback(domain, ex))
+        page.on('crash', lambda ex: crash_logger_callback(domain_name, ex))
         page.on("response", lambda response: response_dataset.append(
             ResponseData(url=response.url, status=response.status, headers=response.headers))
         )
 
         visited_links = []
-        link_queue = [domain_link]  # First request to a domain
+        # link_registry = DomainLinkRegistry(domain_name)  # First request will be to the domain itself
+        link_queue = [""]
 
         while len(link_queue) > 0:
             domain_next_link = link_queue.pop(0)
 
             try:
-                await page.goto(domain_next_link, timeout=0)
+                await page.goto(f"https://{domain_name}/{domain_next_link}", timeout=0)
 
             except playwright_errors.Error as error:
                 logger.warning(f"URL fetch failed: {error.message.split('\n')[0] or error.name}")
 
             else:
-                visited_links.append(domain_next_link)
+                visited_links.append(f"https://{domain_name}/{domain_next_link}")
                 if len(visited_links) > CRAWL_PAGES_PER_DOMAIN:
                     break  # Onto the next domain
 
-                link_queue = await crawling_utils.update_link_queue(link_queue, visited_links, domain, page)
+                links = await crawling_utils.get_formatted_page_links(page, domain_name)
+                link_queue = links
+
+                # link_registry.add(links)
+                # tree = link_registry.get_link_tree()
 
                 # Add the requested domain link and all it's unique sub-resources to the task registry
                 for domain_response_data in response_dataset:
                     # Process only response resources originating from the crawled domain itself
                     if url_domain_pattern.match(domain_response_data.url):
-                        domain_registry.insert(domain, domain_response_data)
+                        domain_registry.insert(domain_name, domain_response_data)
 
         # Current domain crawl finish
         domain_registry.save_raw(path_to_save)
@@ -158,7 +164,7 @@ async def main():
 
     eligible_domains = pd.read_parquet(CRAWL_DOMAINS_LIST_FILEPATH, columns=['url_domain']).reset_index(drop=True)
     domains = \
-        eligible_domains[(eligible_domains.index >= 5000) & (eligible_domains.index < 30000)]['url_domain'].tolist()
+        eligible_domains[(eligible_domains.index >= 12000) & (eligible_domains.index < 30000)]['url_domain'].tolist()
     # domains = eligible_domains['url_domain'].tolist()
     domain_workload_pool = domain_workload_generator(domains)
 
