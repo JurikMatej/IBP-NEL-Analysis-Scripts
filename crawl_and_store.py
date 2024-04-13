@@ -24,7 +24,7 @@ from playwright.async_api import async_playwright, Playwright
 from merge_crawled_and_save import merge_crawled_and_save
 from src import crawling_utils
 from src.classes.CrawledDomainNelRegistry import CrawledDomainNelRegistry
-from src.classes.DomainLinkRegistry import DomainLinkRegistry
+from src.classes.DomainLinkTree import DomainLinkTree
 from src.crawling_utils import ResponseData
 
 
