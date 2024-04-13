@@ -8,7 +8,7 @@ from src import crawling_utils
 from src.crawling_utils import ResponseData, NelHeaders, RtHeaders
 
 
-class CrawledDomainNelRegistry(object):
+class DomainNelDataRegistry(object):
     DF_SCHEMA = {
         'type': "object",
         'status': "UInt16",
@@ -53,10 +53,12 @@ class CrawledDomainNelRegistry(object):
             'nel_include_subdomains': [],
             'nel_report_to': [],
             'rt_collectors': [],
-        }).astype(CrawledDomainNelRegistry.DF_SCHEMA)
+        }).astype(DomainNelDataRegistry.DF_SCHEMA)
 
     def insert(self, domain_name: str, response_data: ResponseData):
-        if response_data.url in self._data['url'].values:
+        url = response_data.url if not response_data.url.endswith('/') else response_data.url[:-1]
+
+        if url in self._data['url'].values:
             # Do not process duplicate resources at all
             # Duplicate resources are mostly crawled when loading sub-resources of the currently crawled document
             return
@@ -79,7 +81,7 @@ class CrawledDomainNelRegistry(object):
         new_registry_row = DataFrame({
             "type": [content_type],
             "status": [response_data.status],
-            "url": [response_data.url],
+            "url": [url],
             "url_domain": [domain_name],
             'url_domain_hosted_resources': [np.nan],
             'url_domain_hosted_resources_with_nel': [np.nan],
@@ -96,7 +98,7 @@ class CrawledDomainNelRegistry(object):
             "nel_include_subdomains": [nel_fields.include_subdomains],
             "nel_report_to": [nel_report_to],
             "rt_collectors": [rt_fields.endpoints]
-        }).astype(CrawledDomainNelRegistry.DF_SCHEMA)
+        }).astype(DomainNelDataRegistry.DF_SCHEMA)
 
         # Append to registry dataframe
         if self._data.empty:
@@ -104,7 +106,7 @@ class CrawledDomainNelRegistry(object):
         else:
             self._data = pd.concat([self._data, new_registry_row])
 
-    def concat_content(self, other: CrawledDomainNelRegistry):
+    def concat_content(self, other: DomainNelDataRegistry):
         self._total_crawled_resources += other._total_crawled_resources
 
         if self._data.empty and not other._data.empty:
@@ -202,10 +204,10 @@ class CrawledDomainNelRegistry(object):
         self._data.to_parquet(file_path)
 
     @staticmethod
-    def read_raw(file_path: str | Path) -> CrawledDomainNelRegistry:
-        raw = pd.read_parquet(file_path).astype(CrawledDomainNelRegistry.DF_SCHEMA)
+    def read_raw(file_path: str | Path) -> DomainNelDataRegistry:
+        raw = pd.read_parquet(file_path).astype(DomainNelDataRegistry.DF_SCHEMA)
 
-        result = CrawledDomainNelRegistry()
+        result = DomainNelDataRegistry()
         if not raw.empty:
             result._total_crawled_resources = raw['total_crawled_resources'].values[0]
             result._data = raw

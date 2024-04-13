@@ -10,8 +10,8 @@ class TestDomainLinkRegistry:
             'events',
             'news'
         ]
-        link_registry = DomainLinkTree("test.com", input_links)
-        domain_node = link_registry.get_root()
+        link_tree = DomainLinkTree("test.com", input_links)
+        domain_node = link_tree.get_root()
 
         assert domain_node == LinkNode('')
         assert len(domain_node.children) == 3
@@ -57,10 +57,10 @@ class TestDomainLinkRegistry:
             ]
         ]
         """
-        link_registry = DomainLinkTree("test.com", init_links)
-        link_registry.add(input_links)
+        link_tree = DomainLinkTree("test.com", init_links)
+        link_tree.add(input_links)
 
-        domain_node = link_registry.get_root()
+        domain_node = link_tree.get_root()
 
         assert domain_node == LinkNode('')
         assert len(domain_node.children) == 1
@@ -80,6 +80,27 @@ class TestDomainLinkRegistry:
         assert this_node.get_child_by_label('must_stay_in_the_tree') == LinkNode('must_stay_in_the_tree')
         assert this_node.get_child_by_label('and_this_will_not_delete_the_first_too') == \
                LinkNode('and_this_will_not_delete_the_first_too')
+
+    def test_add__structure_node_converts_to_link_node_when_add_link_ending_with_label_of_the_structure_node(self):
+        input_domain = "test.com"
+        init_links = [
+            "former_structure_node/link_node"
+        ]
+        add_links = [
+            "former_structure_node"
+        ]
+
+        link_tree = DomainLinkTree(input_domain, init_links)
+
+        first_a_structure_node = link_tree.get_root().get_child_by_label('former_structure_node')
+        assert isinstance(first_a_structure_node, StructureNode)
+
+        # Add a new link
+        # new_link.label == existing StructureNode.label
+        link_tree.add(add_links)
+
+        then_a_link_node = link_tree.get_root().get_child_by_label('former_structure_node')
+        assert isinstance(then_a_link_node, LinkNode)
 
     def test_init__complex_init(self):
         """
@@ -115,9 +136,9 @@ class TestDomainLinkRegistry:
             'news',
             'news/grand'
         ]
-        link_registry = DomainLinkTree("test.com", input_links)
+        link_tree = DomainLinkTree("test.com", input_links)
 
-        domain_node = link_registry.get_root()
+        domain_node = link_tree.get_root()
 
         assert isinstance(domain_node, LinkNode)
         assert domain_node.label == ''
@@ -188,13 +209,13 @@ class TestDomainLinkRegistry:
             "https://test.com/events/XYZ/ABC",
         ]
 
-        link_registry = DomainLinkTree(input_domain, input_links)
+        link_tree = DomainLinkTree(input_domain, input_links)
 
         link_order = []
-        next_link = link_registry.get_next()
+        next_link = link_tree.get_next()
         while next_link is not None:
             link_order.append(next_link)
-            next_link = link_registry.get_next()
+            next_link = link_tree.get_next()
 
         assert link_order == expected_link_order
 
@@ -209,11 +230,31 @@ class TestDomainLinkRegistry:
         ]
     )
     def test_node_to_link(self, input_domain, input_link, expected_node_converted_link):
-        link_registry = DomainLinkTree(input_domain, [input_link])
+        link_tree = DomainLinkTree(input_domain, [input_link])
 
         link_level_labels = input_link.split('/')
-        target_node = link_registry.get_root()
+        target_node = link_tree.get_root()
         for link_level_label in link_level_labels:
             target_node = target_node.get_child_by_label(link_level_label)
 
-        assert link_registry.node_to_link(target_node) == expected_node_converted_link
+        assert link_tree._node_to_link(target_node) == expected_node_converted_link
+
+    def test_get_visited_links_count(self):
+        input_domain = "test.com"
+        input_links = [
+            'about',
+            'events',
+            'events/123',
+            'events/XYZ',
+            'events/XYZ/ABC',
+            'news',
+            'news/grand'
+        ]
+        
+        link_tree = DomainLinkTree(input_domain, input_links)
+
+        next_link = link_tree.get_next()
+        while next_link is not None:
+            next_link = link_tree.get_next()
+
+        assert link_tree.get_visited_links_count() == 7 + 1  # 7 from explicit input + 1 base domain link

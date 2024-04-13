@@ -11,7 +11,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from src.classes.CrawledDomainNelRegistry import CrawledDomainNelRegistry
+from src.classes.DomainNelDataRegistry import DomainNelDataRegistry
 
 
 # LOGGING
@@ -43,10 +43,10 @@ def merge_crawled_and_save(input_dir: str, output_dir: str):
         # Empty result
         return
 
-    result_registry = CrawledDomainNelRegistry()
+    result_registry = DomainNelDataRegistry()
     start_time = time.monotonic()
     for domain_data_file in domain_data_files:
-        domain_data_registry = CrawledDomainNelRegistry.read_raw(domain_data_file)
+        domain_data_registry = DomainNelDataRegistry.read_raw(domain_data_file)
         result_registry.concat_content(domain_data_registry)
 
     logger.info(f"Merging finished in {time.monotonic() - start_time} seconds")

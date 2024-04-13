@@ -23,7 +23,7 @@ from playwright.async_api import async_playwright, Playwright
 
 from merge_crawled_and_save import merge_crawled_and_save
 from src import crawling_utils
-from src.classes.CrawledDomainNelRegistry import CrawledDomainNelRegistry
+from src.classes.DomainNelDataRegistry import DomainNelDataRegistry
 from src.classes.DomainLinkTree import DomainLinkTree
 from src.crawling_utils import ResponseData
 
@@ -46,6 +46,8 @@ CRAWL_PAGES_PER_DOMAIN = 10
 CRAWL_ASYNC_WORKERS = 10
 CRAWL_ASYNC_WORKER_LIFETIME_WORKLOAD = 40
 
+CRAWL_ASYNC_PAGE_LOAD_FAILSAFE_TIMEOUT = 60_000  # milliseconds
+
 
 def crash_logger_callback(domain, exception):
     logger.warning(f"Domain ({domain}) crawl failed: {exception}")
@@ -61,74 +63,75 @@ async def crawl_task(pw: Playwright, domain_queue: List[str], progressbar: tqdm.
     ctx = await browser.new_context()
     ctx.on("weberror", noop_logger_callback)
 
-    page = await ctx.new_page()
-
-    # Disable HTTP cache by enabling routes TODO just a possibility - check whether hinders performance
-    # await page.route('**', lambda route: route.continue_())
-
     while len(domain_queue) > 0:
+        # Domain vars
         domain_name = domain_queue.pop(0)
+        domain_url_pattern = re.compile(fr"https?://{domain_name}")
 
+        # Check if the domain data is already crawled
         path_to_save = Path(f"{CRAWL_DATA_RAW_STORAGE_PATH}/{domain_name}.parquet")
         if path_to_save.exists():
             logger.warning(f"SKIP - Domain data already crawled in '{CRAWL_DATA_RAW_STORAGE_PATH}' ({domain_name})")
             progressbar.update()
             continue
 
-        domain_registry = CrawledDomainNelRegistry()
-        domain_link = f"https://{domain_name}/"
-
-        url_domain_pattern = re.compile(fr"https?://({domain_name}/)")
-
         # Prepare to intercept responses for current domain (set the callback for each domain)
-        response_dataset = []
-        page.on('crash', lambda ex: crash_logger_callback(domain_name, ex))
-        page.on("response", lambda response: response_dataset.append(
+        domain_response_dataset = []
+        page = await ctx.new_page()
+        page.on("response", lambda response: domain_response_dataset.append(
             ResponseData(url=response.url, status=response.status, headers=response.headers))
         )
+        # Also log page crashes
+        page.on('crash', lambda ex: crash_logger_callback(domain_name, ex))
 
-        visited_links = []
-        # link_registry = DomainLinkRegistry(domain_name)  # First request will be to the domain itself
-        link_queue = [""]
+        # Crawling infrastructure for the current domain
+        domain_nel_data_registry = DomainNelDataRegistry()
+        domain_link_tree = DomainLinkTree(domain_name)
+        domain_next_link = domain_link_tree.get_next()  # First request will be to the domain itself
 
-        while len(link_queue) > 0:
-            domain_next_link = link_queue.pop(0)
-
+        while domain_next_link is not None:
             try:
-                await page.goto(f"https://{domain_name}/{domain_next_link}", timeout=0)
+                await page.goto(domain_next_link,
+                                wait_until="domcontentloaded", timeout=CRAWL_ASYNC_PAGE_LOAD_FAILSAFE_TIMEOUT)
+
+            except playwright_errors.TimeoutError:
+                logger.warning(f"URL {domain_next_link} HANGs for too long - timed out")
 
             except playwright_errors.Error as error:
                 logger.warning(f"URL fetch failed: {error.message.split('\n')[0] or error.name}")
 
             else:
-                visited_links.append(f"https://{domain_name}/{domain_next_link}")
-                if len(visited_links) > CRAWL_PAGES_PER_DOMAIN:
+                # Page fetch successful
+                # Update NEL data registry with response dataset
+                for domain_response_data in domain_response_dataset:
+                    # Process only response resources originating from the crawled domain itself
+                    if domain_url_pattern.match(domain_response_data.url):
+                        domain_nel_data_registry.insert(domain_name, domain_response_data)
+
+                # Stop crawling the domain if the per-domain quota was reached
+                if domain_link_tree.get_visited_links_count() >= CRAWL_PAGES_PER_DOMAIN:
                     break  # Onto the next domain
 
-                links = await crawling_utils.get_formatted_page_links(page, domain_name)
-                link_queue = links
+                # Else, add new links to the link tree & continue crawling
+                new_links_available = await crawling_utils.get_formatted_page_links(page, domain_name)
+                domain_link_tree.add(new_links_available)
 
-                # link_registry.add(links)
-                # tree = link_registry.get_link_tree()
+            finally:
+                domain_next_link = domain_link_tree.get_next()
 
-                # Add the requested domain link and all it's unique sub-resources to the task registry
-                for domain_response_data in response_dataset:
-                    # Process only response resources originating from the crawled domain itself
-                    if url_domain_pattern.match(domain_response_data.url):
-                        domain_registry.insert(domain_name, domain_response_data)
-
-        # Current domain crawl finish
-        domain_registry.save_raw(path_to_save)
+        # Current DOMAIN finished crawling
+        domain_nel_data_registry.save_raw(path_to_save)
         progressbar.update()
 
         # Make sure not to hold on to any redundant data that uses RAM
+        await page.close()
         await ctx.clear_cookies()
-        del domain_registry
-        del visited_links
-        del link_queue
+        del domain_nel_data_registry
+        del domain_link_tree
+        del domain_next_link
         gc.collect()
 
-    await page.close()
+    # Crawler task finished the whole domain workload
     await ctx.close()
     await browser.close()
     gc.collect()
@@ -164,18 +167,13 @@ async def main():
 
     eligible_domains = pd.read_parquet(CRAWL_DOMAINS_LIST_FILEPATH, columns=['url_domain']).reset_index(drop=True)
     domains = \
-        eligible_domains[(eligible_domains.index >= 12000) & (eligible_domains.index < 30000)]['url_domain'].tolist()
+        eligible_domains[(eligible_domains.index >= 16100) & (eligible_domains.index < 30000)]['url_domain'].tolist()
     # domains = eligible_domains['url_domain'].tolist()
     domain_workload_pool = domain_workload_generator(domains)
 
     logger.info(f"Beginning to crawl {len(domains)} domains")
 
     async with async_playwright() as pw:
-        # chromium = pw.chromium
-        # browser = await chromium.launch(headless=True)
-        # ctx = await browser.new_context()
-        # ctx.on("weberror", noop_logger_callback)
-
         with tqdm.tqdm(total=len(domains)) as progressbar:
             pending = set()
             for i in range(CRAWL_ASYNC_WORKERS):
@@ -206,9 +204,6 @@ async def main():
 
             except Exception as ex:
                 logger.exception(f"Error occurred during the async crawl: \n{ex}")
-
-        # await ctx.close()
-        # await browser.close()
 
     logger.info("Crawl completed - gathering the results")
     merge_crawled_and_save(CRAWL_DATA_RAW_STORAGE_PATH, CRAWL_DATA_STORAGE_PATH)

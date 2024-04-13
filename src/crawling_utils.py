@@ -41,7 +41,7 @@ class ResponseData:
 async def get_formatted_page_links(page: Page, domain_name: str) -> List[str]:
     available_links = await _get_unique_page_links(page)
     internal_links = _filter_external_links(available_links, domain_name)
-    unique_document_links = _filter_fragments_from_links(internal_links)
+    unique_document_links = _filter_fragments_and_query_strings_from_links(internal_links)
 
     parsed_relative_links = _absolute_to_relative_links(unique_document_links, domain_name)
 
@@ -72,19 +72,17 @@ def _filter_external_links(links: List[str], domain_name: str) -> List[str]:
         links))
 
 
-def _filter_fragments_from_links(links: List[str]) -> List[str]:
+def _filter_fragments_and_query_strings_from_links(links: List[str]) -> List[str]:
     """
-    Filter out fragments from the URL links provided.
+    Filter out fragments and query strings from the URL links provided.
     Effectively filters URL links pointing to the same location, only different sections of the content
     """
     result = []
 
     for link in links:
         # Temporarily remove the query string part of URL link if found
-        qs = ""
         query_sign_index = link.find('?')
         if query_sign_index != -1:
-            qs = link[query_sign_index:]
             link = link[:query_sign_index]
 
         # Find the last slash character
@@ -96,8 +94,8 @@ def _filter_fragments_from_links(links: List[str]) -> List[str]:
                 # If so, exclude the fragment part from the link
                 link = link[:last_slash_index + fragment_index + 1]
 
-        # And add the removed query string part
-        link += qs
+        if link.endswith("/"):
+            link = link[:-1]
 
         result.append(link)
 

@@ -53,56 +53,56 @@ class TestCrawlingUtils:
         "input_links, expected_links", (
             (
                 ["https://example.com/"],
-                ["https://example.com/"]
+                ["https://example.com"]
             ),
             (
                 ["https://example.com/#FRAGMENT"],
-                ["https://example.com/"],
+                ["https://example.com"],
             ),
             (
                 ["https://example.com/sub/page/1/#FRAGMENT"],
-                ["https://example.com/sub/page/1/"],
+                ["https://example.com/sub/page/1"],
             ),
             (
                 ["https://example.com/#"],
-                ["https://example.com/"],
+                ["https://example.com"],
             ),
             (
                 ["https://example.com/###"],
-                ["https://example.com/"],
+                ["https://example.com"],
             ),
             (
                 ["https://example.com/#f1#f2#f3#invalid"],
-                ["https://example.com/"],
+                ["https://example.com"],
             )
         )
     )
-    def test_filter_fragments_from_links__fragment_is_filtered(self, input_links, expected_links):
-        result = crawling_utils._filter_fragments_from_links(input_links)
+    def test__filter_fragments_and_query_strings_from_links__fragment_is_filtered(self, input_links, expected_links):
+        result = crawling_utils._filter_fragments_and_query_strings_from_links(input_links)
         assert result[0] == expected_links[0]
 
     @pytest.mark.parametrize(
         "input_links, expected_links", (
             (
                 ["https://example.com/?a=b&c=d"],
-                ["https://example.com/?a=b&c=d"]
+                ["https://example.com"]
             ),
             (
                 ["https://example.com/#FRAGMENT?a=b&c=d"],
-                ["https://example.com/?a=b&c=d"],
+                ["https://example.com"],
             ),
             (
                 ["https://example.com/sub/page/1/#FRAGMENT?a=b&c=d"],
-                ["https://example.com/sub/page/1/?a=b&c=d"],
+                ["https://example.com/sub/page/1"],
             ),
             (
                 ["https://example.com/#?a=b&c=d"],
-                ["https://example.com/?a=b&c=d"],
+                ["https://example.com"],
             )
         )
     )
-    def test_filter_fragments_from_links__qs_is_not_filtered(self, input_links, expected_links):
-        result = crawling_utils._filter_fragments_from_links(input_links)
+    def test__filter_fragments_and_query_strings_from_links__qs_is_filtered(self, input_links, expected_links):
+        result = crawling_utils._filter_fragments_and_query_strings_from_links(input_links)
         assert result[0] == expected_links[0]
 
     @patch("playwright.async_api.Page")
@@ -118,9 +118,10 @@ class TestCrawlingUtils:
     @pytest.mark.parametrize(
         "input_link, expected",
         [
-            ("https://example.com/", ""),
-            ("https://example.com", ""),
-            ("example.com", ""),
+            ("example.com",             ""),
+            ("example.com/",            ""),
+            ("https://example.com",     ""),
+            ("https://example.com/",    ""),
         ]
     )
     def test_absolute_to_relative_link__base_domain_returns_empty_link(self, input_link, expected):
@@ -130,12 +131,14 @@ class TestCrawlingUtils:
         "input_link, expected",
         [
             ("https://example.com/sub",             "sub"),
+            ("https://example.com/sub/",            "sub"),
             ("https://example.com/sub/page",        "sub/page"),
             ("https://example.com/sub/page?qs=qs",  "sub/page?qs=qs"),
             ("example.com/sub",                     "sub"),
+            ("example.com/sub/",                    "sub"),
             ("example.com/sub/page",                "sub/page"),
             ("example.com/sub/page?qs=qs",          "sub/page?qs=qs"),
         ]
     )
-    def test_absolute_to_relative_link__sub_paths_without_leading_slash(self, input_link, expected):
+    def test_absolute_to_relative_link__sub_paths_without_leading_or_trailing_slash(self, input_link, expected):
         assert crawling_utils._absolute_to_relative_link(input_link, "example.com") == expected

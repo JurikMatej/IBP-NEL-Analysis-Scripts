@@ -8,13 +8,13 @@ from tests.fixtures.nel_data import (
     crawled_resources_10x_correct_5x_incorrect_nel,
     crawled_domain_resources_with_inconsistently_correct_nel
 )
-from src.classes.CrawledDomainNelRegistry import CrawledDomainNelRegistry
+from src.classes.DomainNelDataRegistry import DomainNelDataRegistry
 
 
 class TestCrawledDomainNelRegistry:
     @staticmethod
     def setup_registry(data_fixture: DataFrame):
-        registry = CrawledDomainNelRegistry()
+        registry = DomainNelDataRegistry()
         registry._data = data_fixture.copy()
         return registry
 

@@ -65,11 +65,16 @@ class DomainLinkTree:
     def __init__(self, domain_name: str, initial_links: List[str] = None):
         self._domain_name = domain_name
 
-        # Here, the LinkNode is a link to the base domain (http://domain_name/)
+        self._visited_links_count: int = 0
+
+        # Here, the LinkNode translates to the base domain link - https://{domain_name}
         self._link_tree_root: LinkNode = LinkNode('')
 
         if initial_links:
             self.add(initial_links)
+
+    def __repr__(self):
+        return f"<DomainLinkTree domain='{self._domain_name}' visited_links_count='{self._visited_links_count}'>"
 
     def get_next(self):
         traverse_queue = deque()
@@ -77,7 +82,8 @@ class DomainLinkTree:
         # Verify root
         if not self._link_tree_root.visited:
             self._link_tree_root.visited = True
-            return self.node_to_link(self._link_tree_root)
+            self._visited_links_count += 1
+            return self._node_to_link(self._link_tree_root)
 
         # Expand root's children
         current_node = self._link_tree_root
@@ -90,7 +96,8 @@ class DomainLinkTree:
             if isinstance(current_node, LinkNode) and current_node.visited is False:
                 # Return the node if it is an unvisited LinkNode
                 current_node.visited = True
-                return self.node_to_link(current_node)
+                self._visited_links_count += 1
+                return self._node_to_link(current_node)
 
             # Expand current's children
             for child in current_node.children:
@@ -99,7 +106,7 @@ class DomainLinkTree:
         # No unvisited links available
         return None
 
-    def node_to_link(self, node: LinkNode):
+    def _node_to_link(self, node: LinkNode):
         if node is None:
             return f"https://{self._domain_name}"
 
@@ -113,6 +120,9 @@ class DomainLinkTree:
         if result.strip() == "":
             return f"https://{self._domain_name}"
         return f"https://{self._domain_name}/{result}"
+
+    def get_visited_links_count(self):
+        return self._visited_links_count
 
     def add(self, new_links: List[str]):
         for current_link in new_links:
@@ -149,86 +159,6 @@ class DomainLinkTree:
 
                 # Traverse down the tree to the node that was created
                 parent_node = parent_node.get_child_by_label(current_part)
-
-    # def add(self, new_links: List[str]):
-    #     current_link_level_stack = []
-    #
-    #     to_organize = sorted(list(set(new_links)))
-    #     for link in to_organize:
-    #         link_levels = link.split('/')
-    #         link_levels.extend([None])  # Terminate level sequence with None literal
-    #
-    #         for idx, current_level in enumerate(link_levels):
-    #             next_level_to_add = link_levels[idx + 1]
-    #
-    #             if next_level_to_add is not None:
-    #                 # Add next level
-    #                 current_link_level_stack.append(current_level)
-    #
-    #                 if idx == 0:
-    #                     # Tree root update
-    #
-    #                     # subtree_to_update = self._link_tree.get(current_level, None)
-    #                     # if subtree_to_update is None:
-    #
-    #                     current_level_node = StructureNode(current_level)
-    #                     if current_level_node not in self._link_tree_root.children:
-    #                         # self._link_tree[current_level] = {
-    #                         #     # When there is still next_level_to_add, use StructureNodes to stub structure values
-    #                         #     next_level_to_add: StructureNode()
-    #                         # }
-    #
-    #                         # When there is still next_level_to_add, use StructureNodes to stub structure values
-    #                         self._link_tree_root.add_child(current_level_node)
-    #
-    #                     (self._link_tree_root
-    #                      .get_child_by_label(current_level)
-    #                      .add_child(StructureNode(next_level_to_add)))
-    #
-    #                 else:
-    #                     # Child node update
-    #
-    #                     # Traverse by levels stored in traverse stack
-    #                     sub_node_to_update = self._link_tree_root.get_child_by_label(current_link_level_stack[0])
-    #                     for existing_link in current_link_level_stack[1:-1]:
-    #                         next_traverse_node = sub_node_to_update.get_child_by_label(existing_link)
-    #
-    #                     # Traverse by levels stored in traverse stack
-    #                     # subtree_to_update = self._link_tree_root[current_link_level_stack[0]]  # (tree) root level
-    #                     # for existing_level in current_link_level_stack[1:-1]:
-    #                     #     next_traverse_level = subtree_to_update[existing_level]
-    #                     #     # Traverse deeper only until a placeholder node is found - StructureNode
-    #                     #     if not isinstance(next_traverse_level, StructureNode):
-    #                     #         subtree_to_update = next_traverse_level
-    #
-    #                     last_existing_level = current_link_level_stack[-1]
-    #
-    #                     if sub_node_to_update.get_child_by_label(last_existing_level) is None:
-    #                         new_node = StructureNode(last_existing_level)
-    #                         sub_node_to_update.add_child(new_node)
-    #
-    #
-    #                     if isinstance(subtree_to_update[last_existing_level], StructureNode):
-    #                         # Replace StructureNode stub with new nested tree
-    #                         subtree_to_update[last_existing_level] = {
-    #                             next_level_to_add: StructureNode()
-    #                         }
-    #                     else:
-    #                         if next_level_to_add not in subtree_to_update[last_existing_level]:
-    #                             subtree_to_update[last_existing_level][next_level_to_add] = StructureNode()
-    #
-    #             elif next_level_to_add is None and idx != 0:
-    #                 # No 'next level' & Current level was already added in previous iteration
-    #
-    #                 current_link_level_stack.clear()
-    #                 break
-    #             else:
-    #                 # This is the root level, but no more levels available
-    #                 # Add this one as a LINK Node
-    #                 self._link_tree_root.add_child(LinkNode(current_level))
-    #                 # Reset stack and break
-    #                 current_link_level_stack.clear()
-    #                 break
 
     def get_root(self):
         return self._link_tree_root
