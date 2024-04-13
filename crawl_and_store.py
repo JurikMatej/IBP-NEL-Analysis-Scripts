@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 CRAWL_DATA_RAW_STORAGE_PATH = "data/crawled_raw/blobs"
 CRAWL_DATA_STORAGE_PATH = "data/crawled_raw"
 
-CRAWL_DOMAINS_LIST_FILEPATH = "data/crawl_and_store_eligible_domains.parquet"
+CRAWL_DOMAINS_LIST_FILEPATH = "data/domains_to_crawl.parquet"
 CRAWL_PAGES_PER_DOMAIN = 20
 
 CRAWL_ASYNC_WORKERS = 8
