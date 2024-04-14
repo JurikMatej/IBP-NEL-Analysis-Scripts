@@ -43,10 +43,10 @@ CRAWL_DATA_STORAGE_PATH = "data/crawled_raw"
 CRAWL_DOMAINS_LIST_FILEPATH = "data/domains_to_crawl.parquet"
 CRAWL_PAGES_PER_DOMAIN = 20
 
-CRAWL_ASYNC_WORKERS = 8
+CRAWL_ASYNC_WORKERS = 6
 CRAWL_ASYNC_WORKER_LIFETIME_WORKLOAD = 40
 
-CRAWL_ASYNC_PAGE_LOAD_FAILSAFE_TIMEOUT = 90_000  # milliseconds
+CRAWL_ASYNC_PAGE_LOAD_FAILSAFE_TIMEOUT = 120_000  # milliseconds
 
 
 def crash_logger_callback(domain, exception):
@@ -112,7 +112,7 @@ async def crawl_task(pw: Playwright, domain_queue: List[str], progressbar: tqdm.
                         domain_nel_data_registry.insert(domain_name, domain_response_data)
 
                 # Stop crawling the domain if the per-domain quota was reached
-                if domain_link_tree.get_visited_links_count() >= CRAWL_PAGES_PER_DOMAIN:
+                if domain_link_tree.get_visited_links_count() > CRAWL_PAGES_PER_DOMAIN:
                     break  # Onto the next domain
 
                 # Add new links to the link tree & continue crawling
