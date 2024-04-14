@@ -30,7 +30,7 @@ BIGQUERY_NEL_DATA_SCHEMA = [
 
 
 PYARROW_MERGE_READ_SCHEMA = pa.schema([
-        ('requestId', pa.uint32()),
+        ('requestId', pa.uint64()),
         ('firstReq', pa.string()),
         ('type', pa.string()),
         ('ext', pa.string()),
@@ -58,7 +58,7 @@ PYARROW_MERGE_READ_SCHEMA = pa.schema([
 
 
 PYARROW_MERGE_WRITE_SCHEMA = pa.schema([
-    ('requestId', pa.uint32()),
+    ('requestId', pa.uint64()),
     ('firstReq', pa.bool_()),
     ('type', pa.dictionary(pa.int64(), pa.string())),
     ('ext', pa.dictionary(pa.int64(), pa.string())),
