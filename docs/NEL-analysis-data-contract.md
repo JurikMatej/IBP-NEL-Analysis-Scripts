@@ -144,7 +144,7 @@ All data files must be stored in the same directory.
        - Mention worthy. Just textual output
 
 	2. The 3 base metrics
-       - See points 1., 2. & 3. of the previous section
+       - [OK] See points 1., 2. & 3. of the previous section
        - Maybe add a graph displaying the increase in NEL deployment over the whole period (the mentioned point 1.)
 
 	4. The most used collector providers over the whole period (2018-2024) - deployment begin and remove points in time
@@ -165,12 +165,12 @@ All data files must be stored in the same directory.
         e. top N TOTAL (all occurrences, any priority) collectors
 
     6. Ratio of NEL-monitored resources to non-NEL-monitored resources
-       - url_domain_hosted_resources_with_nel / url_domain_hosted_resources * 100 (for each domain; worth precalculating in BigQuery)
-       - Variability/variety of the NEL configuration on the domain (TODO domains/resources problem)
+       - url_domain_hosted_resources_with_nel / url_domain_hosted_resources * 100 (for each domain)
+       - Variability/variety of the NEL configuration on the domain
        - Visualize probably via a heat graph
 
     7. Configuration metrics
-          a. By separate NEL fields (See point 4. of the previous section)
+          a. [OK] By separate NEL fields (See point 4. of the previous section)
     
     8. Overview of the monitored resource types (html, js, img, video)
 
