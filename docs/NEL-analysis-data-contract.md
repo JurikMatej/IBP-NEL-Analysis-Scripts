@@ -157,21 +157,21 @@ All data files must be stored in the same directory.
          - y-axis = bins of number of reporting domains
          - plot point (heat) content: count of collectors handling the reports
 
-    5. Additional interesting collector metrics:
+    5. [OK] Additional interesting collector metrics:
         a. [OK] len(rt_collectors) as a metric      
         b. [OK] top N primary collectors     
         c. [OK] top N secondary collectors
         e. [OK] top N TOTAL (all occurrences, any priority) collectors
 
-    6. Ratio of NEL-monitored resources to non-NEL-monitored resources
+    6. [OK] Ratio of NEL-monitored resources to non-NEL-monitored resources
        - [OK] url_domain_hosted_resources_with_nel / url_domain_hosted_resources * 100 (for each domain)
        - [OK] Variability/variety of the NEL configuration on the domain
        - [OK] The most popular config variation
 
-    7. Configuration metrics
+    7. [OK] Configuration metrics
           a. [OK] By separate NEL fields (See point 4. of the previous section)
     
-    8. Overview of the monitored resource types (html, js, img, video)
+    8. [OK] Overview of the monitored resource types (html, js, img, video)
 
 	9. Popular domain metrics (case study for the popular sites from TRANCO - interesting domains analysis)
        
