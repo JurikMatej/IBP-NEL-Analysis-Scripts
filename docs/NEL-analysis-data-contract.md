@@ -176,10 +176,12 @@ All data files must be stored in the same directory.
 	9. Popular domain metrics (case study for the popular sites from TRANCO - interesting domains analysis)
        
        This section still uses HTTP Archive as the analysis data source 
-          a. NEL Usage (as in point 1. of the previous section)
-          b. Employed Collectors (as in point 2. & 3. of the previous section)
-          c. Most used config (as in point 4. of the previous section)
+          a. [OK] NEL Usage (as in point 1. of the previous section)
+          b. [OK] Employed Collectors (as in point 2. & 3. of the previous section)
+          c. [OK] Most used config (as in point 4. of the previous section)
+          
           d. Deployment changes in time (start, stop - as in point 4. of THIS section)
+
 
        Then... This point can be complemented with the Selenium real-time crawling script: 
           a. Compare results of point 8. (this section) 
@@ -187,8 +189,8 @@ All data files must be stored in the same directory.
              with the results of a real-time Selenium crawl
 
 	10. Eligible domains to crawl for NEL in Real-Time
-       a. Domains having interesting ratio of NEL-monitored resources to non-NEL-monitored resources (high url_domain_hosted_resources_with_nel)
-       b. Domains from the TRANCO list
+       a. [OK] Domains having interesting ratio of NEL-monitored resources to non-NEL-monitored resources (high url_domain_hosted_resources_with_nel)
+       b. [OK] Domains from the TRANCO list
 
        Crawl these domains in real-time to add more interesting findings to the point 9. of this section 
          - Is the deployed NEL on these domains consistent ? 

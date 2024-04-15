@@ -106,4 +106,3 @@ def run_analysis(input_file: Path, psl_file: Path):
 
 if __name__ == "__main__":
     main()
-

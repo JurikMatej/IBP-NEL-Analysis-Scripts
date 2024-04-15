@@ -9,11 +9,9 @@ import pyarrow.parquet as pq
 from pandas import DataFrame, Series
 from pathlib import Path
 
-from src import psl_utils
-
+from src import psl_utils, metric_utils
 
 RESOURCE_BATCH_SIZE = 50_000_000
-
 
 """
 METRIC LEGEND: (see docs/data-contract)
@@ -92,8 +90,20 @@ def nel_domain_resource_monitoring_stats(input_file: Path, date: str, output_dir
     result.to_parquet(os.path.join(output_dir.absolute(), f"{date}.parquet"))
 
 
-def nel_collector_provider_usage(input_file: Path, aggregated_providers: np.ndarray, date: str,
-                                 used_psl: StringIO | None, output_dir: str) -> np.ndarray:
+def nel_popular_domain_collector_provider_usage(input_file: Path, aggregated_providers: np.ndarray, date: str,
+                                                used_psl: StringIO | None, output_dir: str):
+    year, month = date.split('-')
+    tranco_list = metric_utils.load_tranco_list(year, month)
+
+    return nel_collector_provider_usage(input_file, aggregated_providers, date, used_psl, output_dir, tranco_list)
+
+
+def nel_collector_provider_usage(input_file: Path,
+                                 aggregated_providers: np.ndarray,
+                                 date: str,
+                                 used_psl: StringIO | None,
+                                 output_dir: str,
+                                 tranco_list: DataFrame | None = None) -> np.ndarray:
     """PREPARES DATA FOR: c1, c2 (b2 & b3), c4, c5"""
 
     if used_psl is None:
@@ -102,6 +112,11 @@ def nel_collector_provider_usage(input_file: Path, aggregated_providers: np.ndar
         used_columns = ['url_domain', 'rt_collectors']
 
     data = pd.read_parquet(input_file, columns=used_columns)
+
+    # If TRANCO list has been provided, filter the domain names to those that are marked as popular by the TRANCO list
+    if tranco_list is not None:
+        data = data[data['url_domain'].isin(tranco_list['popular_domain_name'])]
+
     collectors_per_url_domain = data.groupby(['url_domain'], observed=True).first()
 
     del data
@@ -120,7 +135,7 @@ def nel_collector_provider_usage(input_file: Path, aggregated_providers: np.ndar
 
         collectors_per_url_domain[collectors_column] = collectors_per_url_domain[collectors_column].map(
             lambda collectors:
-                [registrable_domain_map[domain_name] for domain_name in collectors]
+            [registrable_domain_map[domain_name] for domain_name in collectors]
         )
 
     all_providers_so_far = Series(
@@ -188,7 +203,11 @@ def nel_collector_provider_usage(input_file: Path, aggregated_providers: np.ndar
     result.reset_index(inplace=True, drop=True)
 
     # Save the result
-    output_dir = Path(f"{output_dir}/nel_collector_provider_usage")
+    if tranco_list is not None:
+        output_dir = Path(f"{output_dir}/popular_nel_collector_provider_usage")
+    else:
+        output_dir = Path(f"{output_dir}/nel_collector_provider_usage")
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
     result.to_parquet(os.path.join(output_dir.absolute(), f"{date}.parquet"))
@@ -329,10 +348,6 @@ def nel_resource_config_variability(input_file: Path, date: str, output_dir: str
 
         batch_result.reset_index(inplace=True)
 
-        # TODO observe duplication (the line below) or config usage (tranco variation of this method)
-        #      only during the visualize phase
-        # batch_result = batch_result[(batch_result.duplicated(subset=['url_domain'], keep=False))]
-
         if result is None:
             # Store results the first time (or at least the schema if batch_result is empty)
             result = batch_result
@@ -387,41 +402,3 @@ def nel_monitored_resource_types(input_file: Path, date: str, output_dir: str):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     result.to_parquet(os.path.join(output_dir.absolute(), f"{date}.parquet"))
-
-
-# TODO use during the visualize phase - this can be computed from the already existing resource config metric data
-# def nel_popular_resource_config(input_file: Path, year: str, month: str):
-#     """PREPARES DATA FOR: c9c"""
-#     data_columns_config_per_url_domain = [
-#         'url_domain', 'nel_include_subdomains', 'nel_failure_fraction', 'nel_success_fraction', 'nel_max_age'
-#     ]
-#     data_columns_config_settings = [
-#         'nel_include_subdomains', 'nel_failure_fraction', 'nel_success_fraction', 'nel_max_age'
-#     ]
-#
-#     nel_data = pd.read_parquet(input_file, columns=data_columns_config_per_url_domain)
-#     tranco_list = metric_utils.load_tranco_list_for_current_month(year, month)
-#
-#     data = nel_data[nel_data['url_domain'].isin(tranco_list['popular_domain_name'])].copy()
-#     data['resources_with_this_config'] = 1
-#
-#     # Count config variation occurrences in the resources hosted on popular domains (group by unique url_domain config)
-#     result = data.groupby(data_columns_config_per_url_domain, observed=True).agg({
-#         'resources_with_this_config': 'count'
-#     })
-#
-#     result.reset_index(inplace=True)
-#
-#     # Among the config variations for all popular domains found, count the config variation occurrences
-#     # (group by unique config - this time count the domains using each unique config variation)
-#     result = result.groupby(data_columns_config_settings, observed=True, as_index=False).agg(
-#         domains_using_this_config=('url_domain', 'count'))
-#
-#     result.sort_values(by='domains_using_this_config', ascending=False, inplace=True)
-#
-#     # Add date as the leftmost column
-#     result['date'] = f"{year}-{month}"
-#     result.set_index('date', inplace=True)
-#     result.reset_index(inplace=True)
-#
-#     # DO NOTHING - this function is to be removed when rewritten into the visualize phase script

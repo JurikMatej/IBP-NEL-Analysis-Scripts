@@ -23,12 +23,10 @@ import numpy as np
 import src.nel_analyis as nel_analysis
 from src import psl_utils
 
-
 # LOGGING
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format='%(asctime)s:%(levelname)s\t- %(message)s')
 logger = logging.getLogger(__name__)
-
 
 ###############################
 # CONFIGURE THESE BEFORE USE: #
@@ -73,6 +71,7 @@ def main():
 def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path]):
     # Initialize data to be aggregated throughout the months
     collector_providers_so_far = np.empty(0, dtype=str)
+    popular_collector_providers_so_far = np.empty(0, dtype=str)
 
     # Monthly analysis loop
     for input_file in input_files:
@@ -103,6 +102,12 @@ def run_analysis(input_files: List[pathlib.Path], psl_files: List[pathlib.Path])
         collector_providers_so_far = \
             nel_analysis.nel_collector_provider_usage(input_file,
                                                       collector_providers_so_far, date, psl_io, ANALYSIS_OUTPUT_DIR)
+
+        # Popular Collector data (same as above but use TRANCO list of popular domains for current date)
+        popular_collector_providers_so_far = \
+            nel_analysis.nel_popular_domain_collector_provider_usage(input_file,
+                                                                     popular_collector_providers_so_far, date, psl_io,
+                                                                     ANALYSIS_OUTPUT_DIR)
 
         # Domain configuration data
         nel_analysis.nel_config(input_file, date, ANALYSIS_OUTPUT_DIR)
