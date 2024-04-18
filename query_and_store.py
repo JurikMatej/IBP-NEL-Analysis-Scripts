@@ -456,6 +456,7 @@ def main():
             print()
 
             clean_temp_table(query_client, output_filename)
+            print()
 
     print()
     logger.info("All items downloaded. Exiting...")
