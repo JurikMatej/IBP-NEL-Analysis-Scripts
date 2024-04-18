@@ -543,11 +543,17 @@ FROM (
       --    1. The registrable collector domains using an UP-TO-DATE Public Suffix List, 
       --    2. Or, upon PSL parse failure - fallback to TLD + second to last domain label
       ARRAY(
-        (SELECT 
-          IFNULL(
-            NET.REG_DOMAIN(rt_collector), 
-            REGEXP_EXTRACT(rt_collector, r"\.(\w+\.\w+$)") -- Extract TLD + second to last domain label
-          ) 
+        (SELECT
+          IFNULL( 
+            IFNULL(
+              IFNULL(
+                NET.REG_DOMAIN(rt_collector), 
+                REGEXP_EXTRACT(rt_collector, r"\.(\w+\.\w+$)") -- Extract TLD + second to last domain label
+              ), 
+              rt_collector  -- Fallback to the original collector name if neither of the above works
+            ),
+            '' -- Fallback to empty string if everything went wrong
+          )
           AS rt_collector_registrable 
         FROM 
           UNNEST(rt_collectors) AS rt_collector)
