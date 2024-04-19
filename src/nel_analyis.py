@@ -93,6 +93,10 @@ def nel_domain_resource_monitoring_stats(input_file: Path, date: str, output_dir
 def nel_popular_domain_collector_provider_usage(input_file: Path, aggregated_providers: np.ndarray, date: str,
                                                 used_psl: StringIO | None, output_dir: str):
     year, month = date.split('-')
+    # TRANCO is only available from 1.12.2018
+    if year == '2018' and month < '12':
+        return
+
     tranco_list = metric_utils.load_tranco_list(year, month)
 
     return nel_collector_provider_usage(input_file, aggregated_providers, date, used_psl, output_dir, tranco_list)
