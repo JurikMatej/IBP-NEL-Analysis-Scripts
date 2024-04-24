@@ -294,7 +294,7 @@ def export_temp_table_to_storage_bucket_blobs(blob_name_prefix: str):
     logger.info("NEL data exported successfully and is ready to be downloaded")
 
 
-def download_blobs_from_storage_bucket(storage_client: google.cloud.storage.Client, blob_name_prefix: str):
+def download_blobs_from_storage_bucket(storage_client: storage.Client, blob_name_prefix: str):
     """
     Downloads all blobs from the Google Cloud Storage bucket to local disk space.
 
