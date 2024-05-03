@@ -1,0 +1,3 @@
+[submodule "IBP-NEL-Analysis"]
+	path = IBP-NEL-Analysis
+	url = https://github.com/JurikMatej/IBP-NEL-Analysis.git
