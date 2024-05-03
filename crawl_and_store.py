@@ -3,9 +3,13 @@
 """
 author:         Matej Jurík <xjurik12@stud.fit.vutbr.cz>
 
-description:    Descriptive..
+description:    Web crawler implementation for collecting NEL headers across multiple pages on a pre-defined set of
+                domains to crawl.
 
-purpose:        Purposeful...
+                IMPORTANT NOTE:
+                This script is to be configured in the global constants section before use.
+                Set the input file containing the domains to crawl first, otherwise nothing is done.
+                ...Other configuration constants are good to go as they are.
 """
 
 import gc
@@ -37,16 +41,17 @@ logger = logging.getLogger(__name__)
 ###############################
 # CONFIGURE THESE BEFORE USE: #
 ###############################
-CRAWL_DATA_RAW_STORAGE_PATH = "data/crawled_raw/blobs"
-CRAWL_DATA_STORAGE_PATH = "data/crawled_raw"
+CRAWL_DATA_RAW_STORAGE_PATH = "data/crawled_raw/blobs"  # Raw crawled data - per-domain crawled data blob files
+CRAWL_DATA_STORAGE_PATH = "data/crawled_raw"            # Raw crawled data - merged blob files
 
+# INPUT FILE - must contain a dataframe with 'url_domain' column
 CRAWL_DOMAINS_LIST_FILEPATH = "data/domains_to_crawl.parquet"
 CRAWL_PAGES_PER_DOMAIN = 20
 
-CRAWL_ASYNC_WORKERS = 6
-CRAWL_ASYNC_WORKER_LIFETIME_WORKLOAD = 40
+CRAWL_ASYNC_WORKERS = 6                     # How many asyncio tasks to deploy
+CRAWL_ASYNC_WORKER_LIFETIME_WORKLOAD = 40   # How many domains to assign to a single asyncio task to complete
 
-CRAWL_ASYNC_PAGE_LOAD_FAILSAFE_TIMEOUT = 120_000  # milliseconds
+CRAWL_ASYNC_PAGE_LOAD_FAILSAFE_TIMEOUT = 120_000  # milliseconds (Some pages load their scripts for way too long)
 
 
 def crash_logger_callback(domain, exception):
@@ -171,9 +176,15 @@ async def main():
         return
 
     eligible_domains = pd.read_parquet(CRAWL_DOMAINS_LIST_FILEPATH, columns=['url_domain']).reset_index(drop=True)
+
+    # Crawl:
+    # EITHER A SUBSET OF DOMAINS
     # domains = \
     #     eligible_domains[(eligible_domains.index >= 16840) & (eligible_domains.index < 30000)]['url_domain'].tolist()
+
+    # OR THE WHOLE SET OF DOMAINS
     domains = eligible_domains['url_domain'].tolist()
+
     domain_workload_pool = domain_workload_generator(domains)
 
     logger.info(f"Beginning to crawl {len(domains)} domains")

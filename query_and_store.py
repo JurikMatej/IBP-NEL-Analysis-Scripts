@@ -14,14 +14,7 @@ description:    Query the Google Cloud Platform's BigQuery for HTTP Archive data
                 The former script somehow managed to query the HTTP Archive datasets via the base interface
                 (google.cloud.bigquery API) without reaching its limits for the maximum size of each query results.
                 Here, the Google Cloud Storage API (google.cloud.storage) is used to retrieve large volume of data.
-                Inner works:
-                    1. Query BigQuery for NEL Data
-                    2. Store the data in a temporary table managed automatically by this script (see config section)
-                    3. Export that temporary table to Google Cloud Storage bucket
-                    (creates many small Parquet files --- blobs --- compressed using SNAPPY).
-                    4. Download all blobs from the Google Cloud Storage bucket
-                    5. Make a single Parquet file from all those blobs
-                    6. Persist the file locally
+
                 Set-up:
                     1. Create a Google Cloud project
                     2. Create Service Account with ADMIN privileges for GC BigQuery and GC Storage
@@ -50,6 +43,18 @@ description:    Query the Google Cloud Platform's BigQuery for HTTP Archive data
                         ]
                     Where each object in the global array represents an entry to download = monthly NEL data.
                     Also, the name of the config file is configurable within the config of this script.
+
+                Inner works:
+                For each entry in config file:
+                    1. Query BigQuery for NEL Data
+                    2. Store the data in a temporary table managed automatically by this script (see config section)
+                    3. Export that temporary table to Google Cloud Storage bucket
+                       (creates many small Parquet files --- blobs --- compressed using SNAPPY).
+                    4. Download all blobs from the Google Cloud Storage bucket
+                    5. Make a single Parquet file from all those blobs
+                    6. Persist the file locally
+
+
 
 purpose:        Get raw HTTP Archive data from the Google Cloud and store it as an Apache Parquet file in order
                 for it to be available locally for further processing, analysis and visualization.

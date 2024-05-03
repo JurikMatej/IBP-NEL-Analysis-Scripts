@@ -3,9 +3,11 @@
 """
 author:         Matej Jurík <xjurik12@stud.fit.vutbr.cz>
 
-description:    Descriptive..
+description:    Analyzes the crawled raw NEL data from the set of domains given as an input to the crawling script.
+                This 'analyze' script processes the crawled data into a set of organized, metric oriented data frames
+                and then saves them in another location to be later used in the 'Visualize' step.
 
-purpose:        Purposeful...
+purpose:        Prepares the crawled raw NEL data to be later visualized by per-metric visualization scripts.
 """
 
 
@@ -31,10 +33,10 @@ logger = logging.getLogger(__name__)
 ###############################
 
 # Crawl directory structure
-CRAWL_DATA_DIR_PATH = "data/crawled_raw"
-PSL_DIR_PATH = "resources/public_suffix_lists"
+CRAWL_DATA_DIR_PATH = "data/crawled_raw"        # Merged crawl data path
+PSL_DIR_PATH = "resources/public_suffix_lists"  # Required PSL directory (should be good as is)
 
-ANALYSIS_OUTPUT_DIR = "data/crawled_metrics/"
+ANALYSIS_OUTPUT_DIR = "data/crawled_metrics/"   # Output directory
 
 
 def main():
@@ -46,7 +48,7 @@ def main():
         logger.error("No crawled data available. Run the crawler first")
         return
 
-    # Use the latest crawled data file
+    # Use the latest merged crawled data file
     input_file = input_files[-1]
 
     psl_dir = Path(PSL_DIR_PATH)

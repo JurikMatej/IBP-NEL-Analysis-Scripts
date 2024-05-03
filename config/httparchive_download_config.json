@@ -742,5 +742,27 @@
     ],
 
     "processed_output": "nel_data_2024_02"
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2024_03_01_desktop"
+    ],
+
+    "input_mobile": [
+      "httparchive.summary_requests.2024_03_01_mobile"
+    ],
+
+    "processed_output": "nel_data_2024_03"
+  },
+  {
+    "input_desktop": [
+      "httparchive.summary_requests.2024_04_01_desktop"
+    ],
+
+    "input_mobile": [
+      "httparchive.summary_requests.2024_04_01_mobile"
+    ],
+
+    "processed_output": "nel_data_2024_04"
   }
 ]
