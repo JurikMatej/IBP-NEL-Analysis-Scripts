@@ -19,7 +19,7 @@ First, make sure the directory `./data` contains a file named `domains_to_crawl.
 I provided the default one - a set of domains taken from HTTP Archive metric `nel_domain_resource_monitoring_stats` 
 from April 2024 that were a part of the TOP 1M TRANCO domains & had at least 20 resources monitored by NEL.
 
-##### Actualize the list of domains to crawl
+#### Actualize the list of domains to crawl
 
 To update these domains at a later date, either use `query_and_store.py` to download the latest available month data 
 from HTTP Archive.
@@ -33,7 +33,7 @@ This approach, however, does not have an implemented script among these to autom
 The format for the input file mentioned is an Apache Parquet file with a pandas DataFrame that must contain an 
 `url_domain` column with the domains to crawl. 
 
-##### Run the crawl analysis
+#### Run the crawl analysis
 
 To run a complete analysis on crawled data:
 
